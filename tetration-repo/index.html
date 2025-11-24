@@ -6,42 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              200: '#bfdbfe',
-              300: '#93c5fd',
-              400: '#60a5fa',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8',
-              800: '#1e40af',
-              900: '#1e3a8a',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <link href="/css/tailwind.css" rel="stylesheet">
   
   <!-- Preline UI -->
-  <script>
-    const prelineScript = document.createElement('script');
-    prelineScript.src = '/node_modules/preline/dist/preline.js';
-    prelineScript.onerror = function() {
-      const fallbackScript = document.createElement('script');
-      fallbackScript.src = 'https://cdn.jsdelivr.net/npm/preline@2.0.3/dist/preline.js';
-      document.head.appendChild(fallbackScript);
-    };
-    document.head.appendChild(prelineScript);
-  </script>
+  <script src="/node_modules/preline/dist/preline.js"></script>
   
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
