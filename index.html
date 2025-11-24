@@ -298,12 +298,34 @@
       269, 271, 277, 281
     ];
     
-    // Check if Chart.js is loaded
-    if (typeof Chart === 'undefined') {
-      document.body.innerHTML = '<div class="p-20 text-red-500">Error: Chart.js library failed to load. Please check your internet connection.</div>';
-      throw new Error('Chart.js not loaded');
+    // Helper functions and variables (available globally)
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status');
+    const chartInstructions = $('chartInstructions');
+    
+    // Wait for Chart.js to load
+    function waitForChart(callback) {
+      if (typeof Chart !== 'undefined') {
+        callback();
+      } else {
+        setTimeout(() => waitForChart(callback), 50);
+      }
     }
     
+    // Global chart variable
+    let chart;
+    
+    waitForChart(() => {
+      // Check if Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+        document.body.innerHTML = '<div class="p-20 text-red-500">Error: Chart.js library failed to load. Please check that the server is running and node_modules are accessible.</div>';
+        throw new Error('Chart.js not loaded');
+      }
+      
+      initializeChart();
+    });
+    
+    function initializeChart() {
     const ctx = document.getElementById('chart');
     if (!ctx) {
       document.body.innerHTML = '<div class="p-20 text-red-500">Error: Canvas element not found.</div>';
@@ -326,7 +348,7 @@
       console.error('Error registering zoom plugin:', e);
     }
     
-    const chart = new Chart(ctx.getContext('2d'), {
+    chart = new Chart(ctx.getContext('2d'), {
       type: 'line',
       data: {
         labels: [],
@@ -397,10 +419,7 @@
         }
       }
     });
-
-    const $ = (id) => document.getElementById(id);
-    const statusEl = $('status');
-    const chartInstructions = $('chartInstructions');
+    } // End of initializeChart function
 
     // Track last projection method used
     let lastProjectionMethod = null; // 'tetration' or 'snapshot'
