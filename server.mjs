@@ -1305,13 +1305,38 @@ function firstNPrimes(N = 500) {
 
 const PRIMES_500 = firstNPrimes(500);
 
-// Test endpoint to verify routing is working (register directly, not via registerApiRoute)
+// Health check and test endpoints (register directly, not via registerApiRoute)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running!', 
+    path: req.path, 
+    url: req.url,
+    method: req.method,
+    headers: req.headers,
+    timestamp: new Date().toISOString() 
+  });
+});
+
+app.get('/trading/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running!', 
+    path: req.path, 
+    url: req.url,
+    method: req.method,
+    headers: req.headers,
+    timestamp: new Date().toISOString() 
+  });
+});
+
 app.get('/api/test', (req, res) => {
   res.json({ status: 'ok', message: 'API routing is working!', path: req.path, url: req.url, timestamp: new Date().toISOString() });
 });
 app.get('/trading/api/test', (req, res) => {
   res.json({ status: 'ok', message: 'API routing is working!', path: req.path, url: req.url, timestamp: new Date().toISOString() });
 });
+console.log('✓ Registered health check endpoints: GET /api/health and GET /trading/api/health');
 console.log('✓ Registered test endpoints: GET /api/test and GET /trading/api/test');
 
 // Yahoo Finance data endpoints
@@ -1694,6 +1719,10 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     res.status(500).json({ error: 'snapshot failed' });
   }
 });
+
+// IMPORTANT: If deployed behind a reverse proxy that strips /trading/ prefix,
+// routes should work at both /api/* and /trading/api/*
+// The registerApiRoute function already handles this
 
 // Serve static files AFTER API routes are registered
 // This ensures API routes are matched before static file middleware
