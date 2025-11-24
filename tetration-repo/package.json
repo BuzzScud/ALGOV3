@@ -1,0 +1,27 @@
+{
+  "name": "prime-tetration-trading",
+  "version": "1.0.0",
+  "description": "Trading Web App with Prime Tetration Projections",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "keywords": [
+    "trading",
+    "prime-tetration",
+    "finance"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "preline": "^3.2.3",
+    "yahoo-finance2": "^2.4.0"
+  }
+}
+
+
