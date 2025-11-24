@@ -12,13 +12,24 @@ app.use(express.json());
 // Serve static files (HTML, CSS, JS)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-app.use(express.static(__dirname));
-
-// Serve node_modules for Preline UI
-app.use('/node_modules', express.static(join(__dirname, 'node_modules')));
 
 // Create yahooFinance instance
 const yahooFinance = new YahooFinance();
+
+// Helper function to register API routes (supports both root and /trading/ paths)
+// This must be defined before routes are registered
+function registerApiRoute(method, path, handler) {
+  // Register at root level
+  app[method](path, handler);
+  // Also register at /trading/ path for subdirectory deployments
+  app[method](`/trading${path}`, handler);
+  // Log route registration for debugging
+  console.log(`Registered ${method.toUpperCase()} route: ${path} and /trading${path}`);
+}
+
+// Register API routes BEFORE static file serving to ensure they're matched first
+// This prevents static file middleware from intercepting API requests
+// Routes will be registered later in the file, but the function is defined here
 
 // Constants
 const PHI = [3, 7, 31, 12, 19, 5, 11, 13, 17, 23, 29, 31]; // Full crystalline lattice dimensions
@@ -1265,13 +1276,8 @@ function firstNPrimes(N = 500) {
 
 const PRIMES_500 = firstNPrimes(500);
 
-// Helper function to register API routes (supports both root and /trading/ paths)
-function registerApiRoute(method, path, handler) {
-  app[method](path, handler);
-  app[method](`/trading${path}`, handler); // Also register at /trading/ path
-}
-
 // Yahoo Finance data endpoints
+// Note: registerApiRoute function is defined earlier in the file
 registerApiRoute('get', '/api/quote', async (req, res) => {
   try {
     const { symbol } = req.query;
