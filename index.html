@@ -729,14 +729,22 @@
         let basePath = '';
         
         // If we're at /trading/ or /trading/index.html, use /trading as base
-        if (currentPath.startsWith('/trading')) {
-          basePath = '/trading';
+        // Also check if the path contains /trading/ anywhere
+        if (currentPath.includes('/trading')) {
+          // Extract the base path up to and including /trading
+          const parts = currentPath.split('/');
+          const tradingIndex = parts.indexOf('trading');
+          if (tradingIndex >= 0) {
+            basePath = '/' + parts.slice(1, tradingIndex + 1).join('/');
+          } else {
+            basePath = '/trading';
+          }
         }
         
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath);
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath);
         
         let points = [];
         let baseLabels = [];
@@ -906,14 +914,22 @@
         let basePath = '';
         
         // If we're at /trading/ or /trading/index.html, use /trading as base
-        if (currentPath.startsWith('/trading')) {
-          basePath = '/trading';
+        // Also check if the path contains /trading/ anywhere
+        if (currentPath.includes('/trading')) {
+          // Extract the base path up to and including /trading
+          const parts = currentPath.split('/');
+          const tradingIndex = parts.indexOf('trading');
+          if (tradingIndex >= 0) {
+            basePath = '/' + parts.slice(1, tradingIndex + 1).join('/');
+          } else {
+            basePath = '/trading';
+          }
         }
         
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath);
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath);
         
         let points = [];
         let baseLabels = [];

@@ -9,6 +9,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 // Serve static files (HTML, CSS, JS)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1656,10 +1662,24 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
   }
 });
 
+// Serve static files AFTER API routes are registered
+// This ensures API routes are matched before static file middleware
+app.use('/node_modules', express.static(join(__dirname, 'node_modules')));
+app.use('/trading/node_modules', express.static(join(__dirname, 'node_modules')));
+app.use(express.static(__dirname));
+app.use('/trading', express.static(__dirname));
+
+// 404 handler for unmatched routes (must be last)
+app.use((req, res) => {
+  console.log(`404 - Requested URL: ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Not Found', message: `The requested URL ${req.url} was not found on this server.` });
+});
+
 function startServer(port) {
   const server = app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
     console.log(`Open http://localhost:${port}/index.html in your browser`);
+    console.log(`API routes available at /api/* and /trading/api/*`);
   });
   
   server.on('error', (err) => {
