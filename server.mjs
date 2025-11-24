@@ -9,9 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Request logging middleware for debugging
+// Request logging middleware for debugging - log ALL requests
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log(`  Path: ${req.path}, OriginalUrl: ${req.originalUrl}`);
+  console.log(`  Query:`, req.query);
   next();
 });
 
@@ -25,20 +27,33 @@ const yahooFinance = new YahooFinance();
 // Helper function to register API routes (supports both root and /trading/ paths)
 // This must be defined before routes are registered
 function registerApiRoute(method, path, handler) {
+  // Wrap handler to add logging
+  const wrappedHandler = async (req, res, next) => {
+    console.log(`[ROUTE MATCHED] ${method.toUpperCase()} ${req.path} - Handler executing`);
+    try {
+      await handler(req, res, next);
+    } catch (err) {
+      console.error(`[ROUTE ERROR] ${method.toUpperCase()} ${req.path}:`, err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+      }
+    }
+  };
+  
   // Register at root level
-  app[method](path, handler);
+  app[method](path, wrappedHandler);
   // Also register at /trading/ path for subdirectory deployments
-  app[method](`/trading${path}`, handler);
+  app[method](`/trading${path}`, wrappedHandler);
   // Also try without trailing slash variations
   if (path.endsWith('/')) {
-    app[method](path.slice(0, -1), handler);
-    app[method](`/trading${path.slice(0, -1)}`, handler);
+    app[method](path.slice(0, -1), wrappedHandler);
+    app[method](`/trading${path.slice(0, -1)}`, wrappedHandler);
   } else {
-    app[method](`${path}/`, handler);
-    app[method](`/trading${path}/`, handler);
+    app[method](`${path}/`, wrappedHandler);
+    app[method](`/trading${path}/`, wrappedHandler);
   }
   // Log route registration for debugging
-  console.log(`Registered ${method.toUpperCase()} route: ${path} and /trading${path} (with variations)`);
+  console.log(`✓ Registered ${method.toUpperCase()} route: ${path} and /trading${path} (with variations)`);
 }
 
 // Register API routes BEFORE static file serving to ensure they're matched first
@@ -1679,23 +1694,53 @@ app.use('/trading', express.static(__dirname));
 
 // 404 handler for unmatched routes (must be last)
 app.use((req, res) => {
-  console.log(`404 - Requested URL: ${req.method} ${req.url}`);
-  console.log(`404 - Headers:`, req.headers);
-  console.log(`404 - Available routes: GET /api/quote, GET /api/history, POST /api/tetration-projection, POST /api/snapshot`);
+  console.log(`\n[404 ERROR] ========================================`);
+  console.log(`Method: ${req.method}`);
+  console.log(`URL: ${req.url}`);
+  console.log(`Path: ${req.path}`);
+  console.log(`OriginalUrl: ${req.originalUrl}`);
+  console.log(`BaseUrl: ${req.baseUrl}`);
+  console.log(`Available routes should be:`);
+  console.log(`  GET /api/quote`);
+  console.log(`  GET /api/history`);
+  console.log(`  POST /api/tetration-projection`);
+  console.log(`  POST /api/snapshot`);
+  console.log(`  And all with /trading prefix`);
+  console.log(`========================================\n`);
+  
   res.status(404).json({ 
     error: 'Not Found', 
     message: `The requested URL ${req.url} was not found on this server.`,
     method: req.method,
     path: req.path,
-    originalUrl: req.originalUrl
+    originalUrl: req.originalUrl,
+    hint: 'Check server console logs for registered routes'
   });
 });
 
 function startServer(port) {
+  // Log all registered routes before starting server
+  console.log('\n=== REGISTERED ROUTES ===');
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      routes.push(`${Object.keys(middleware.route.methods)[0].toUpperCase()} ${middleware.route.path}`);
+    } else if (middleware.name === 'router') {
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push(`${Object.keys(handler.route.methods)[0].toUpperCase()} ${handler.route.path}`);
+        }
+      });
+    }
+  });
+  routes.forEach(route => console.log(`  ${route}`));
+  console.log('========================\n');
+  
   const server = app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-    console.log(`Open http://localhost:${port}/index.html in your browser`);
-    console.log(`API routes available at /api/* and /trading/api/*`);
+    console.log(`\n🚀 Server running on http://localhost:${port}`);
+    console.log(`📄 Open http://localhost:${port}/index.html in your browser`);
+    console.log(`🔌 API routes available at /api/* and /trading/api/*`);
+    console.log(`\nWaiting for requests...\n`);
   });
   
   server.on('error', (err) => {
