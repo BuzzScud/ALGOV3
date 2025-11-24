@@ -712,7 +712,10 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        const API_BASE = `${window.location.protocol}//${window.location.host}${window.location.pathname.split('/').slice(0, -1).join('/') || ''}`;
+        // Calculate API base URL - handle /trading/ subdirectory
+        const pathParts = window.location.pathname.split('/').filter(p => p);
+        const basePath = pathParts.length > 0 && pathParts[0] === 'trading' ? '/trading' : '';
+        const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         let points = [];
         let baseLabels = [];
@@ -848,7 +851,10 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        const API_BASE = `${window.location.protocol}//${window.location.host}${window.location.pathname.split('/').slice(0, -1).join('/') || ''}`;
+        // Calculate API base URL - handle /trading/ subdirectory
+        const pathParts = window.location.pathname.split('/').filter(p => p);
+        const basePath = pathParts.length > 0 && pathParts[0] === 'trading' ? '/trading' : '';
+        const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         let points = [];
         let baseLabels = [];
