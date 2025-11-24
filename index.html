@@ -4,16 +4,17 @@
   <meta charset="utf-8" />
   <title>Prime Tetration Trading — Snapshot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/trading/">
   
   <!-- Tailwind CSS -->
-  <link href="/css/tailwind.css" rel="stylesheet">
+  <link href="css/tailwind.css" rel="stylesheet">
   
   <!-- Preline UI -->
-  <script src="/node_modules/preline/dist/preline.js"></script>
+  <script src="node_modules/preline/dist/preline.js"></script>
   
   <!-- Chart.js -->
-  <script src="/node_modules/chart.js/dist/chart.umd.min.js"></script>
-  <script src="/node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
+  <script src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
   
   <style>
     canvas {
@@ -711,7 +712,7 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        const API_BASE = `${window.location.protocol}//${window.location.host}`;
+        const API_BASE = `${window.location.protocol}//${window.location.host}${window.location.pathname.split('/').slice(0, -1).join('/') || ''}`;
         
         let points = [];
         let baseLabels = [];
@@ -847,7 +848,7 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        const API_BASE = `${window.location.protocol}//${window.location.host}`;
+        const API_BASE = `${window.location.protocol}//${window.location.host}${window.location.pathname.split('/').slice(0, -1).join('/') || ''}`;
         
         let points = [];
         let baseLabels = [];
