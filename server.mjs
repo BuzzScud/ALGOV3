@@ -1305,8 +1305,18 @@ function firstNPrimes(N = 500) {
 
 const PRIMES_500 = firstNPrimes(500);
 
+// Test endpoint to verify routing is working (register directly, not via registerApiRoute)
+app.get('/api/test', (req, res) => {
+  res.json({ status: 'ok', message: 'API routing is working!', path: req.path, url: req.url, timestamp: new Date().toISOString() });
+});
+app.get('/trading/api/test', (req, res) => {
+  res.json({ status: 'ok', message: 'API routing is working!', path: req.path, url: req.url, timestamp: new Date().toISOString() });
+});
+console.log('✓ Registered test endpoints: GET /api/test and GET /trading/api/test');
+
 // Yahoo Finance data endpoints
 // Note: registerApiRoute function is defined earlier in the file
+// IMPORTANT: These routes are registered BEFORE static middleware (which is at the end of the file)
 registerApiRoute('get', '/api/quote', async (req, res) => {
   try {
     const { symbol } = req.query;
