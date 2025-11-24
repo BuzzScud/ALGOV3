@@ -752,6 +752,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
         });
+        
+        if (!tetrationResp.ok) {
+          const errorData = await tetrationResp.json().catch(() => ({ error: `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}` }));
+          throw new Error(errorData.error || errorData.details || `Server error: ${tetrationResp.status}`);
+        }
+        
         const tetration = await tetrationResp.json();
         if (tetration.error) throw new Error(tetration.error);
 
@@ -891,6 +897,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
         });
+        
+        if (!snapResp.ok) {
+          const errorData = await snapResp.json().catch(() => ({ error: `HTTP ${snapResp.status}: ${snapResp.statusText}` }));
+          throw new Error(errorData.error || errorData.details || `Server error: ${snapResp.status}`);
+        }
+        
         const snap = await snapResp.json();
         if (snap.error) throw new Error(snap.error);
 
