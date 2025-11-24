@@ -705,7 +705,18 @@
         statusEl.innerHTML = '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"></div><span>Running tetration tower analysis with oscillation tracking...</span></div>';
         statusEl.className = 'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center';
         
-        const symbol = $('ticker').value.trim().toUpperCase();
+        let symbol = $('ticker').value.trim().toUpperCase();
+        
+        // Validate symbol format
+        if (!symbol) {
+          throw new Error('Please enter a stock symbol');
+        }
+        
+        // Remove any invalid characters and validate format
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
         const base = selectedBase;
         const horizon = selectedHorizon;
         const beta = 0.01; // Default beta value
@@ -850,7 +861,18 @@
         statusEl.innerHTML = '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div><span>Running snapshot analysis...</span></div>';
         statusEl.className = 'p-4 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300 min-h-[60px] flex items-center';
         
-        const symbol = $('ticker').value.trim().toUpperCase();
+        let symbol = $('ticker').value.trim().toUpperCase();
+        
+        // Validate symbol format
+        if (!symbol) {
+          throw new Error('Please enter a stock symbol');
+        }
+        
+        // Remove any invalid characters and validate format
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
         const base = selectedBase;
         const horizon = selectedHorizon;
         const beta = 0.01; // Default beta value
