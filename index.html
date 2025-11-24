@@ -724,16 +724,29 @@
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
         // Calculate API base URL - handle /trading/ subdirectory
-        const pathParts = window.location.pathname.split('/').filter(p => p);
-        const basePath = pathParts.length > 0 && pathParts[0] === 'trading' ? '/trading' : '';
+        // Get the base path from current location
+        const currentPath = window.location.pathname;
+        let basePath = '';
+        
+        // If we're at /trading/ or /trading/index.html, use /trading as base
+        if (currentPath.startsWith('/trading')) {
+          basePath = '/trading';
+        }
+        
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
+        
+        // Debug: log API base for troubleshooting
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath);
         
         let points = [];
         let baseLabels = [];
         try {
-          const histResp = await fetch(`${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
+          const historyUrl = `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`;
+          console.log('Fetching history from:', historyUrl);
+          const histResp = await fetch(historyUrl);
           if (!histResp.ok) {
-            throw new Error(`HTTP ${histResp.status}: ${histResp.statusText}`);
+            const errorText = await histResp.text().catch(() => histResp.statusText);
+            throw new Error(`HTTP ${histResp.status}: ${errorText || histResp.statusText}`);
           }
           const hist = await histResp.json();
           if (hist.error) {
@@ -758,14 +771,22 @@
           baseLabels = [];
         }
 
-        const tetrationResp = await fetch(`${API_BASE}/api/tetration-projection`, {
+        const tetrationUrl = `${API_BASE}/api/tetration-projection`;
+        console.log('Fetching tetration projection from:', tetrationUrl);
+        const tetrationResp = await fetch(tetrationUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
         });
         
         if (!tetrationResp.ok) {
-          const errorData = await tetrationResp.json().catch(() => ({ error: `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}` }));
+          const errorText = await tetrationResp.text().catch(() => tetrationResp.statusText);
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}` };
+          }
           throw new Error(errorData.error || errorData.details || `Server error: ${tetrationResp.status}`);
         }
         
@@ -880,16 +901,29 @@
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
         // Calculate API base URL - handle /trading/ subdirectory
-        const pathParts = window.location.pathname.split('/').filter(p => p);
-        const basePath = pathParts.length > 0 && pathParts[0] === 'trading' ? '/trading' : '';
+        // Get the base path from current location
+        const currentPath = window.location.pathname;
+        let basePath = '';
+        
+        // If we're at /trading/ or /trading/index.html, use /trading as base
+        if (currentPath.startsWith('/trading')) {
+          basePath = '/trading';
+        }
+        
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
+        
+        // Debug: log API base for troubleshooting
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath);
         
         let points = [];
         let baseLabels = [];
         try {
-          const histResp = await fetch(`${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
+          const historyUrl = `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`;
+          console.log('Fetching history from:', historyUrl);
+          const histResp = await fetch(historyUrl);
           if (!histResp.ok) {
-            throw new Error(`HTTP ${histResp.status}: ${histResp.statusText}`);
+            const errorText = await histResp.text().catch(() => histResp.statusText);
+            throw new Error(`HTTP ${histResp.status}: ${errorText || histResp.statusText}`);
           }
           const hist = await histResp.json();
           if (hist.error) {
@@ -914,14 +948,22 @@
           baseLabels = [];
         }
 
-        const snapResp = await fetch(`${API_BASE}/api/snapshot`, {
+        const snapshotUrl = `${API_BASE}/api/snapshot`;
+        console.log('Fetching snapshot from:', snapshotUrl);
+        const snapResp = await fetch(snapshotUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
         });
         
         if (!snapResp.ok) {
-          const errorData = await snapResp.json().catch(() => ({ error: `HTTP ${snapResp.status}: ${snapResp.statusText}` }));
+          const errorText = await snapResp.text().catch(() => snapResp.statusText);
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${snapResp.status}: ${snapResp.statusText}` };
+          }
           throw new Error(errorData.error || errorData.details || `Server error: ${snapResp.status}`);
         }
         

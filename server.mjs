@@ -1265,8 +1265,14 @@ function firstNPrimes(N = 500) {
 
 const PRIMES_500 = firstNPrimes(500);
 
+// Helper function to register API routes (supports both root and /trading/ paths)
+function registerApiRoute(method, path, handler) {
+  app[method](path, handler);
+  app[method](`/trading${path}`, handler); // Also register at /trading/ path
+}
+
 // Yahoo Finance data endpoints
-app.get('/api/quote', async (req, res) => {
+registerApiRoute('get', '/api/quote', async (req, res) => {
   try {
     const { symbol } = req.query;
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
@@ -1290,7 +1296,7 @@ app.get('/api/quote', async (req, res) => {
   }
 });
 
-app.get('/api/history', async (req, res) => {
+registerApiRoute('get', '/api/history', async (req, res) => {
   try {
     const { symbol, range = '1mo', interval = '1d' } = req.query;
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
@@ -1380,7 +1386,7 @@ app.get('/api/history', async (req, res) => {
 });
 
 // Enhanced tetration projection endpoint with oscillation analysis
-app.post('/api/tetration-projection', async (req, res) => {
+registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
   try {
     const {
       symbol,
@@ -1533,7 +1539,7 @@ app.post('/api/tetration-projection', async (req, res) => {
 });
 
 // Snapshot endpoint
-app.post('/api/snapshot', async (req, res) => {
+registerApiRoute('post', '/api/snapshot', async (req, res) => {
   try {
     const {
       symbol,
