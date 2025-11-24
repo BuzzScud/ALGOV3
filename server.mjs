@@ -1283,7 +1283,7 @@ app.get('/api/quote', async (req, res) => {
   } catch (err) {
     console.error('Quote error:', err);
     // Handle yahoo-finance2 specific errors
-    if (err.message && err.message.includes('string did not match')) {
+    if (err.message && (err.message.includes('string did not match') || err.message.includes('expected pattern'))) {
       return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
     }
     res.status(500).json({ error: 'quote failed', details: err.message });
@@ -1318,7 +1318,7 @@ app.get('/api/history', async (req, res) => {
     try {
       // Try to use historical module
       if (typeof yahooFinance.historical === 'function') {
-        const result = await yahooFinance.historical(symbol, {
+        const result = await yahooFinance.historical(symbol.toUpperCase(), {
           period1: Math.floor(startDate.getTime() / 1000),
           period2: Math.floor(endDate.getTime() / 1000),
           interval: interval === '1d' ? '1d' : '1d'
@@ -1341,13 +1341,27 @@ app.get('/api/history', async (req, res) => {
         return;
       }
     } catch (histErr) {
-      console.warn('Historical module not available:', histErr.message);
+      console.warn('Historical module error:', histErr.message);
+      // If it's a validation error, return it immediately
+      if (histErr.message && (histErr.message.includes('string did not match') || histErr.message.includes('expected pattern'))) {
+        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      }
     }
     
     // Fallback: return current quote as a single data point
-    const quotes = await yahooFinance.quote(symbol);
-    const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-    const price = quote?.regularMarketPrice || 0;
+    let price = 0;
+    try {
+      const quotes = await yahooFinance.quote(symbol.toUpperCase());
+      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
+      price = quote?.regularMarketPrice || 0;
+    } catch (quoteErr) {
+      console.error('Quote error in history fallback:', quoteErr);
+      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
+        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      }
+      // If quote fails, return empty data instead of throwing
+      price = 0;
+    }
     
     res.json({
       result: [{
@@ -1398,7 +1412,7 @@ app.post('/api/tetration-projection', async (req, res) => {
       lastPrice = Number(lastTrade);
     } catch (quoteErr) {
       console.error('Quote error in tetration-projection:', quoteErr);
-      if (quoteErr.message && quoteErr.message.includes('string did not match')) {
+      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
         return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
       }
       throw quoteErr;
@@ -1551,7 +1565,7 @@ app.post('/api/snapshot', async (req, res) => {
       lastPrice = Number(lastTrade);
     } catch (quoteErr) {
       console.error('Quote error in snapshot:', quoteErr);
-      if (quoteErr.message && quoteErr.message.includes('string did not match')) {
+      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
         return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
       }
       throw quoteErr;
