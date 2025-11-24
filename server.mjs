@@ -29,8 +29,16 @@ function registerApiRoute(method, path, handler) {
   app[method](path, handler);
   // Also register at /trading/ path for subdirectory deployments
   app[method](`/trading${path}`, handler);
+  // Also try without trailing slash variations
+  if (path.endsWith('/')) {
+    app[method](path.slice(0, -1), handler);
+    app[method](`/trading${path.slice(0, -1)}`, handler);
+  } else {
+    app[method](`${path}/`, handler);
+    app[method](`/trading${path}/`, handler);
+  }
   // Log route registration for debugging
-  console.log(`Registered ${method.toUpperCase()} route: ${path} and /trading${path}`);
+  console.log(`Registered ${method.toUpperCase()} route: ${path} and /trading${path} (with variations)`);
 }
 
 // Register API routes BEFORE static file serving to ensure they're matched first
@@ -1672,7 +1680,15 @@ app.use('/trading', express.static(__dirname));
 // 404 handler for unmatched routes (must be last)
 app.use((req, res) => {
   console.log(`404 - Requested URL: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Not Found', message: `The requested URL ${req.url} was not found on this server.` });
+  console.log(`404 - Headers:`, req.headers);
+  console.log(`404 - Available routes: GET /api/quote, GET /api/history, POST /api/tetration-projection, POST /api/snapshot`);
+  res.status(404).json({ 
+    error: 'Not Found', 
+    message: `The requested URL ${req.url} was not found on this server.`,
+    method: req.method,
+    path: req.path,
+    originalUrl: req.originalUrl
+  });
 });
 
 function startServer(port) {

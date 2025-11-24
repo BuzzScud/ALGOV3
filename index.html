@@ -726,35 +726,63 @@
         // Calculate API base URL - handle /trading/ subdirectory
         // Get the base path from current location
         const currentPath = window.location.pathname;
+        const currentUrl = window.location.href;
         let basePath = '';
         
-        // If we're at /trading/ or /trading/index.html, use /trading as base
-        // Also check if the path contains /trading/ anywhere
+        // Check if we're in a /trading/ subdirectory
+        // Handle various path formats: /trading/, /trading/index.html, /trading, etc.
         if (currentPath.includes('/trading')) {
           // Extract the base path up to and including /trading
-          const parts = currentPath.split('/');
+          const parts = currentPath.split('/').filter(p => p);
           const tradingIndex = parts.indexOf('trading');
           if (tradingIndex >= 0) {
-            basePath = '/' + parts.slice(1, tradingIndex + 1).join('/');
+            basePath = '/' + parts.slice(0, tradingIndex + 1).join('/');
           } else {
             basePath = '/trading';
           }
+        } else if (currentUrl.includes('/trading')) {
+          // Fallback: check full URL if pathname doesn't have it
+          basePath = '/trading';
         }
         
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath);
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath, 'Full URL:', currentUrl);
         
         let points = [];
         let baseLabels = [];
         try {
-          const historyUrl = `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`;
-          console.log('Fetching history from:', historyUrl);
-          const histResp = await fetch(historyUrl);
-          if (!histResp.ok) {
-            const errorText = await histResp.text().catch(() => histResp.statusText);
-            throw new Error(`HTTP ${histResp.status}: ${errorText || histResp.statusText}`);
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
+            `${window.location.protocol}//${window.location.host}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
+            `${window.location.protocol}//${window.location.host}/trading/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await fetch(historyUrl);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
           }
           const hist = await histResp.json();
           if (hist.error) {
@@ -779,23 +807,57 @@
           baseLabels = [];
         }
 
-        const tetrationUrl = `${API_BASE}/api/tetration-projection`;
-        console.log('Fetching tetration projection from:', tetrationUrl);
-        const tetrationResp = await fetch(tetrationUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
-        });
+        // Try multiple API paths as fallback
+        const tetrationPaths = [
+          `${API_BASE}/api/tetration-projection`,
+          `${window.location.protocol}//${window.location.host}/api/tetration-projection`,
+          `${window.location.protocol}//${window.location.host}/trading/api/tetration-projection`
+        ];
         
-        if (!tetrationResp.ok) {
-          const errorText = await tetrationResp.text().catch(() => tetrationResp.statusText);
+        let tetrationResp = null;
+        let lastTetrationError = null;
+        
+        for (const tetrationUrl of tetrationPaths) {
+          try {
+            console.log('Trying tetration URL:', tetrationUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            tetrationResp = await fetch(tetrationUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            });
+            
+            console.log('Tetration response status:', tetrationResp.status, tetrationResp.statusText);
+            
+            if (tetrationResp.ok) {
+              console.log('Successfully fetched from:', tetrationUrl);
+              break; // Success, exit loop
+            } else if (tetrationResp.status === 404) {
+              console.warn('404 from:', tetrationUrl, '- trying next path...');
+              lastTetrationError = `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', tetrationUrl, fetchErr.message);
+            lastTetrationError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!tetrationResp || !tetrationResp.ok) {
+          const errorText = await tetrationResp?.text().catch(() => tetrationResp?.statusText || lastTetrationError || 'Unknown error');
+          console.error('Tetration error after trying all paths:', errorText);
           let errorData;
           try {
             errorData = JSON.parse(errorText);
           } catch {
-            errorData = { error: errorText || `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}` };
+            errorData = { error: errorText || `HTTP ${tetrationResp?.status || 'Network'}: ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}` };
           }
-          throw new Error(errorData.error || errorData.details || `Server error: ${tetrationResp.status}`);
+          throw new Error(errorData.error || errorData.details || errorData.message || `Server error: ${tetrationResp?.status || 'Network Error'}`);
         }
         
         const tetration = await tetrationResp.json();
@@ -911,35 +973,63 @@
         // Calculate API base URL - handle /trading/ subdirectory
         // Get the base path from current location
         const currentPath = window.location.pathname;
+        const currentUrl = window.location.href;
         let basePath = '';
         
-        // If we're at /trading/ or /trading/index.html, use /trading as base
-        // Also check if the path contains /trading/ anywhere
+        // Check if we're in a /trading/ subdirectory
+        // Handle various path formats: /trading/, /trading/index.html, /trading, etc.
         if (currentPath.includes('/trading')) {
           // Extract the base path up to and including /trading
-          const parts = currentPath.split('/');
+          const parts = currentPath.split('/').filter(p => p);
           const tradingIndex = parts.indexOf('trading');
           if (tradingIndex >= 0) {
-            basePath = '/' + parts.slice(1, tradingIndex + 1).join('/');
+            basePath = '/' + parts.slice(0, tradingIndex + 1).join('/');
           } else {
             basePath = '/trading';
           }
+        } else if (currentUrl.includes('/trading')) {
+          // Fallback: check full URL if pathname doesn't have it
+          basePath = '/trading';
         }
         
         const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
         
         // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath);
+        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath, 'Full URL:', currentUrl);
         
         let points = [];
         let baseLabels = [];
         try {
-          const historyUrl = `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`;
-          console.log('Fetching history from:', historyUrl);
-          const histResp = await fetch(historyUrl);
-          if (!histResp.ok) {
-            const errorText = await histResp.text().catch(() => histResp.statusText);
-            throw new Error(`HTTP ${histResp.status}: ${errorText || histResp.statusText}`);
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
+            `${window.location.protocol}//${window.location.host}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
+            `${window.location.protocol}//${window.location.host}/trading/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await fetch(historyUrl);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
           }
           const hist = await histResp.json();
           if (hist.error) {
@@ -964,23 +1054,57 @@
           baseLabels = [];
         }
 
-        const snapshotUrl = `${API_BASE}/api/snapshot`;
-        console.log('Fetching snapshot from:', snapshotUrl);
-        const snapResp = await fetch(snapshotUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
-        });
+        // Try multiple API paths as fallback
+        const apiPaths = [
+          `${API_BASE}/api/snapshot`,
+          `${window.location.protocol}//${window.location.host}/api/snapshot`,
+          `${window.location.protocol}//${window.location.host}/trading/api/snapshot`
+        ];
         
-        if (!snapResp.ok) {
-          const errorText = await snapResp.text().catch(() => snapResp.statusText);
+        let snapResp = null;
+        let lastError = null;
+        
+        for (const snapshotUrl of apiPaths) {
+          try {
+            console.log('Trying snapshot URL:', snapshotUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            snapResp = await fetch(snapshotUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            });
+            
+            console.log('Snapshot response status:', snapResp.status, snapResp.statusText);
+            
+            if (snapResp.ok) {
+              console.log('Successfully fetched from:', snapshotUrl);
+              break; // Success, exit loop
+            } else if (snapResp.status === 404) {
+              console.warn('404 from:', snapshotUrl, '- trying next path...');
+              lastError = `HTTP ${snapResp.status}: ${snapResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', snapshotUrl, fetchErr.message);
+            lastError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!snapResp || !snapResp.ok) {
+          const errorText = await snapResp?.text().catch(() => snapResp?.statusText || lastError || 'Unknown error');
+          console.error('Snapshot error after trying all paths:', errorText);
           let errorData;
           try {
             errorData = JSON.parse(errorText);
           } catch {
-            errorData = { error: errorText || `HTTP ${snapResp.status}: ${snapResp.statusText}` };
+            errorData = { error: errorText || `HTTP ${snapResp?.status || 'Network'}: ${snapResp?.statusText || lastError || 'Failed to fetch'}` };
           }
-          throw new Error(errorData.error || errorData.details || `Server error: ${snapResp.status}`);
+          throw new Error(errorData.error || errorData.details || errorData.message || `Server error: ${snapResp?.status || 'Network Error'}`);
         }
         
         const snap = await snapResp.json();
