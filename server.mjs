@@ -1270,11 +1270,22 @@ app.get('/api/quote', async (req, res) => {
   try {
     const { symbol } = req.query;
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
-    const quotes = await yahooFinance.quote(symbol);
+    
+    // Validate symbol format (alphanumeric, 1-10 characters)
+    const symbolPattern = /^[A-Z0-9.-]{1,10}$/i;
+    if (!symbolPattern.test(symbol)) {
+      return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
+    }
+    
+    const quotes = await yahooFinance.quote(symbol.toUpperCase());
     const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
     res.json(quote);
   } catch (err) {
-    console.error(err);
+    console.error('Quote error:', err);
+    // Handle yahoo-finance2 specific errors
+    if (err.message && err.message.includes('string did not match')) {
+      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+    }
     res.status(500).json({ error: 'quote failed', details: err.message });
   }
 });
@@ -1283,6 +1294,12 @@ app.get('/api/history', async (req, res) => {
   try {
     const { symbol, range = '1mo', interval = '1d' } = req.query;
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
+    
+    // Validate symbol format
+    const symbolPattern = /^[A-Z0-9.-]{1,10}$/i;
+    if (!symbolPattern.test(symbol)) {
+      return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
+    }
     
     // Use historical module for historical data
     // Calculate date ranges
@@ -1362,14 +1379,30 @@ app.post('/api/tetration-projection', async (req, res) => {
     } = req.body || {};
 
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
+    
+    // Validate symbol format
+    const symbolPattern = /^[A-Z0-9.-]{1,10}$/i;
+    if (!symbolPattern.test(symbol)) {
+      return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
+    }
+    
     if (!Number.isInteger(+count) || +count < 1 || +count > 12) return res.status(400).json({ error: 'count must be between 1 and 12' });
 
     // Get latest price
-    const quotes = await yahooFinance.quote(symbol);
-    const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-    const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
-    if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
-    const lastPrice = Number(lastTrade);
+    let lastPrice;
+    try {
+      const quotes = await yahooFinance.quote(symbol.toUpperCase());
+      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
+      const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
+      if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
+      lastPrice = Number(lastTrade);
+    } catch (quoteErr) {
+      console.error('Quote error in tetration-projection:', quoteErr);
+      if (quoteErr.message && quoteErr.message.includes('string did not match')) {
+        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      }
+      throw quoteErr;
+    }
 
     // Generate tetration towers with variable height (tower height = dimensions)
     // Returns towers and orbital primes (the two primes in elliptical orbit)
@@ -1499,14 +1532,30 @@ app.post('/api/snapshot', async (req, res) => {
     } = req.body || {};
 
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
+    
+    // Validate symbol format
+    const symbolPattern = /^[A-Z0-9.-]{1,10}$/i;
+    if (!symbolPattern.test(symbol)) {
+      return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
+    }
+    
     if (!Number.isInteger(+count) || +count < 1 || +count > 12) return res.status(400).json({ error: 'count must be between 1 and 12' });
 
     // Get latest price as seed for projections
-    const quotes = await yahooFinance.quote(symbol);
-    const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-    const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
-    if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
-    const lastPrice = Number(lastTrade);
+    let lastPrice;
+    try {
+      const quotes = await yahooFinance.quote(symbol.toUpperCase());
+      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
+      const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
+      if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
+      lastPrice = Number(lastTrade);
+    } catch (quoteErr) {
+      console.error('Quote error in snapshot:', quoteErr);
+      if (quoteErr.message && quoteErr.message.includes('string did not match')) {
+        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      }
+      throw quoteErr;
+    }
 
     // Triads setup
     let triadList = triads;
