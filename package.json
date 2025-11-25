@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Trading Web App with Prime Tetration Projections",
   "type": "module",
-  "main": "server.mjs",
+  "main": "backend/server.mjs",
   "scripts": {
-    "start": "node server.mjs",
-    "dev": "node server.mjs",
-    "build:css": "tailwindcss -i ./input.css -o ./css/tailwind.css --minify"
+    "start": "node backend/server.mjs",
+    "dev": "node backend/server.mjs",
+    "build:css": "tailwindcss -i ./frontend/input.css -o ./frontend/css/tailwind.css --minify"
   },
   "keywords": [
     "trading",

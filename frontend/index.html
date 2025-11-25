@@ -480,6 +480,45 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      <!-- Stock Symbol Info -->
+      <div id="stockInfo" class="px-6 py-4 border-b border-gray-800 bg-gray-800/30 hidden">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div class="flex items-center gap-4">
+            <div>
+              <h1 id="stockSymbol" class="text-2xl font-bold text-white">-</h1>
+              <p id="stockName" class="text-sm text-gray-400 mt-0.5">-</p>
+            </div>
+            <div class="h-12 w-px bg-gray-600"></div>
+            <div>
+              <p class="text-xs text-gray-500 mb-1">Current Price</p>
+              <p id="stockPrice" class="text-xl font-semibold text-white">-</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 mb-1">Change</p>
+              <p id="stockChange" class="text-sm font-medium">-</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 mb-1">Change %</p>
+              <p id="stockChangePercent" class="text-sm font-medium">-</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 text-xs text-gray-400">
+            <div>
+              <span class="text-gray-500">Open:</span> <span id="stockOpen">-</span>
+            </div>
+            <div>
+              <span class="text-gray-500">High:</span> <span id="stockHigh">-</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Low:</span> <span id="stockLow">-</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Volume:</span> <span id="stockVolume">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Chart Header -->
       <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
         <div class="flex items-center justify-between">
@@ -1162,16 +1201,112 @@
       mobileMenuOverlay.addEventListener('click', closeMobileMenu);
     }
     
+    // Fetch and display stock info
+    async function fetchAndDisplayStockInfo(symbol) {
+      if (!symbol || symbol.trim() === '') {
+        const stockInfo = document.getElementById('stockInfo');
+        if (stockInfo) stockInfo.classList.add('hidden');
+        return;
+      }
+      
+      try {
+        const quotePaths = [
+          `/api/quote?symbol=${encodeURIComponent(symbol)}`,
+          `/trading/api/quote?symbol=${encodeURIComponent(symbol)}`
+        ];
+        
+        let quoteResp = null;
+        for (const quoteUrl of quotePaths) {
+          try {
+            quoteResp = await apiFetch(quoteUrl, { method: 'GET' }, 1);
+            if (quoteResp.ok) break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!quoteResp || !quoteResp.ok) {
+          const stockInfo = document.getElementById('stockInfo');
+          if (stockInfo) stockInfo.classList.add('hidden');
+          return;
+        }
+        
+        const quote = await quoteResp.json();
+        
+        // Update stock info display
+        const stockInfo = document.getElementById('stockInfo');
+        if (stockInfo) stockInfo.classList.remove('hidden');
+        
+        if ($('stockSymbol')) $('stockSymbol').textContent = quote.symbol || symbol.toUpperCase();
+        if ($('stockName')) {
+          const stockName = quote.longName || quote.shortName || quote.name || `${symbol.toUpperCase()} Stock`;
+          $('stockName').textContent = stockName;
+        }
+        if ($('stockPrice')) $('stockPrice').textContent = formatPrice(quote.regularMarketPrice || 0);
+        
+        const change = quote.change !== undefined ? quote.change : (quote.regularMarketPrice && quote.regularMarketPreviousClose ? (quote.regularMarketPrice - quote.regularMarketPreviousClose) : 0);
+        const changePercent = quote.percentChange !== undefined ? quote.percentChange : (change && quote.regularMarketPreviousClose ? (change / quote.regularMarketPreviousClose) * 100 : 0);
+        
+        if ($('stockChange')) {
+          $('stockChange').textContent = formatPrice(change);
+          $('stockChange').className = `text-sm font-medium ${change >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        }
+        
+        if ($('stockChangePercent')) {
+          $('stockChangePercent').textContent = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+          $('stockChangePercent').className = `text-sm font-medium ${changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        }
+        
+        if ($('stockOpen')) $('stockOpen').textContent = formatPrice(quote.regularMarketOpen || quote.regularMarketPrice || 0);
+        if ($('stockHigh')) $('stockHigh').textContent = formatPrice(quote.regularMarketHigh || quote.regularMarketPrice || 0);
+        if ($('stockLow')) $('stockLow').textContent = formatPrice(quote.regularMarketLow || quote.regularMarketPrice || 0);
+        if ($('stockVolume')) $('stockVolume').textContent = formatVolume(quote.regularMarketVolume || 0);
+        
+      } catch (err) {
+        console.warn('Could not fetch stock info:', err);
+        const stockInfo = document.getElementById('stockInfo');
+        if (stockInfo) stockInfo.classList.add('hidden');
+      }
+    }
+    
+    // Format price helper
+    function formatPrice(price) {
+      if (!price || price === 0) return '-';
+      return '$' + price.toFixed(2);
+    }
+    
+    // Format volume helper
+    function formatVolume(volume) {
+      if (!volume || volume === 0) return '-';
+      if (volume >= 1000000) return (volume / 1000000).toFixed(2) + 'M';
+      if (volume >= 1000) return (volume / 1000).toFixed(2) + 'K';
+      return volume.toLocaleString();
+    }
+    
+    // Stock info update timeout
+    let stockInfoTimeout = null;
+    
     // Sync mobile and desktop inputs
     function syncInputs() {
       const tickerDesktop = $('ticker');
       const tickerMobile = $('tickerMobile');
       if (tickerDesktop && tickerMobile) {
+        const updateStockInfo = (symbol) => {
+          clearTimeout(stockInfoTimeout);
+          stockInfoTimeout = setTimeout(() => {
+            if (symbol && symbol.trim()) {
+              fetchAndDisplayStockInfo(symbol.trim().toUpperCase());
+            }
+          }, 500);
+        };
+        
         tickerDesktop.addEventListener('input', () => {
           tickerMobile.value = tickerDesktop.value;
+          updateStockInfo(tickerDesktop.value);
         });
         tickerMobile.addEventListener('input', () => {
           tickerDesktop.value = tickerMobile.value;
+          updateStockInfo(tickerMobile.value);
         });
       }
     }
@@ -1247,6 +1382,11 @@
         );
         
         let symbol = getSymbol();
+        
+        // Fetch and display stock info
+        if (symbol && symbol.trim()) {
+          fetchAndDisplayStockInfo(symbol.trim().toUpperCase());
+        }
         
         // CRITICAL: Validate symbol format before sending request
         // This prevents "variable is not defined" errors and 400 Bad Request loops
@@ -1530,6 +1670,11 @@
         );
         
         let symbol = getSymbol();
+        
+        // Fetch and display stock info
+        if (symbol && symbol.trim()) {
+          fetchAndDisplayStockInfo(symbol.trim().toUpperCase());
+        }
         
         // CRITICAL: Validate symbol format before sending request
         // This prevents "variable is not defined" errors and 400 Bad Request loops
