@@ -1364,7 +1364,13 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     const data = await response.json();
     
+    // Check for Finnhub error
+    if (!data || data.error) {
+      throw new Error(data.error || 'Invalid response from Finnhub');
+    }
+    
     // Transform Finnhub response to match expected format
+    // Finnhub quote format: { c: current, h: high, l: low, o: open, pc: previous close, t: timestamp, d: change, dp: percent change }
     const quote = {
       symbol: symbol.toUpperCase(),
       regularMarketPrice: data.c || data.pc || 0, // current price or previous close
@@ -1378,6 +1384,11 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
       change: data.d || 0,
       percentChange: data.dp || 0
     };
+    
+    // Validate we got actual data
+    if (quote.regularMarketPrice === 0 && quote.regularMarketPreviousClose === 0) {
+      throw new Error('No price data available for this symbol');
+    }
     
     res.json(quote);
   } catch (err) {
