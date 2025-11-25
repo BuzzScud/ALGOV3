@@ -788,8 +788,19 @@
           if (hist.error) {
             throw new Error(hist.error);
           }
-          points = hist?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-          const timestamps = hist?.result?.[0]?.timestamp || [];
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
           baseLabels = timestamps.map(ts => {
             try {
               return new Date(ts * 1000).toLocaleDateString();
@@ -1035,8 +1046,19 @@
           if (hist.error) {
             throw new Error(hist.error);
           }
-          points = hist?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-          const timestamps = hist?.result?.[0]?.timestamp || [];
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
           baseLabels = timestamps.map(ts => {
             try {
               return new Date(ts * 1000).toLocaleDateString();
