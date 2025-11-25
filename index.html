@@ -291,16 +291,20 @@
   </div>
 
   <script>
+    // CRITICAL: Define fetch immediately before any other code runs
     // Fetch polyfill for older browsers or environments where fetch is not available
     // Use ES5 syntax for maximum compatibility
     (function() {
-      // Check if fetch is available - check both window.fetch and global fetch
-      var fetchAvailable = typeof window !== 'undefined' && typeof window.fetch !== 'undefined';
-      fetchAvailable = fetchAvailable || (typeof fetch !== 'undefined');
+      // Always define fetch - if native fetch exists, use it; otherwise use polyfill
+      var nativeFetch = null;
+      if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+        nativeFetch = window.fetch;
+      } else if (typeof fetch === 'function') {
+        nativeFetch = fetch;
+      }
       
-      if (!fetchAvailable) {
-        // Simple fetch polyfill using XMLHttpRequest (ES5 compatible)
-        var fetchPolyfill = function(url, options) {
+      // Define fetch function (polyfill or native)
+      var fetchFunction = nativeFetch || function(url, options) {
           // Handle default parameters for older browsers
           options = options || {};
           url = url || '';
@@ -387,21 +391,78 @@
             }
           });
         };
-        
-        // Assign to both window.fetch and global fetch
-        if (typeof window !== 'undefined') {
-          window.fetch = fetchPolyfill;
+      
+      // ALWAYS assign fetch to window and global scope
+      if (typeof window !== 'undefined') {
+        window.fetch = fetchFunction;
+      }
+      // Also set global fetch (for Node.js-like environments)
+      try {
+        if (typeof global !== 'undefined') {
+          global.fetch = fetchFunction;
         }
-        // Also try to set global fetch (for Node.js-like environments)
-        try {
-          if (typeof global !== 'undefined') {
-            global.fetch = fetchPolyfill;
-          }
-        } catch (e) {
-          // Ignore if global is not available
-        }
+      } catch (e) {
+        // Ignore if global is not available
+      }
+      
+      // Also set it in the current scope
+      if (typeof self !== 'undefined') {
+        self.fetch = fetchFunction;
       }
     })();
+    
+    // Final safety check: Ensure fetch is ALWAYS defined in global scope
+    // This runs after the IIFE to catch any edge cases
+    if (typeof window !== 'undefined') {
+      // If window.fetch exists, use it; otherwise create a simple one
+      if (typeof window.fetch !== 'function') {
+        window.fetch = function(url, options) {
+          options = options || {};
+          return new Promise(function(resolve, reject) {
+            try {
+              var xhr = new XMLHttpRequest();
+              xhr.open(options.method || 'GET', url, true);
+              if (options.headers) {
+                for (var key in options.headers) {
+                  if (options.headers.hasOwnProperty(key)) {
+                    xhr.setRequestHeader(key, options.headers[key]);
+                  }
+                }
+              }
+              xhr.onload = function() {
+                resolve({
+                  ok: xhr.status >= 200 && xhr.status < 300,
+                  status: xhr.status,
+                  statusText: xhr.statusText || '',
+                  text: function() { return Promise.resolve(xhr.responseText || ''); },
+                  json: function() { 
+                    try {
+                      return Promise.resolve(JSON.parse(xhr.responseText || '{}')); 
+                    } catch(e) {
+                      return Promise.reject(new Error('Invalid JSON: ' + e.message));
+                    }
+                  }
+                });
+              };
+              xhr.onerror = function() { reject(new Error('Network error')); };
+              xhr.ontimeout = function() { reject(new Error('Request timeout')); };
+              xhr.send(options.body || null);
+            } catch(err) {
+              reject(new Error('Fetch error: ' + err.message));
+            }
+          });
+        };
+      }
+      // Make sure it's also available as global fetch
+      if (typeof fetch === 'undefined') {
+        // Create a reference to window.fetch in global scope
+        try {
+          eval('var fetch = window.fetch;');
+        } catch(e) {
+          // If eval fails, at least window.fetch will work
+        }
+      }
+    }
     
     // Prime depth options - expanded up to 281
     const PRIME_STOPS = [
