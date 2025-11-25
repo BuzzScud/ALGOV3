@@ -1533,7 +1533,7 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     let response;
     try {
-      response = await (globalThis.fetch || fetch)(url, {
+      response = await globalThis.fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1685,7 +1685,7 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     
     let response;
     try {
-      response = await (globalThis.fetch || fetch)(url, {
+      response = await globalThis.fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1783,7 +1783,7 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for tetration-projection from Finnhub...');
-      const response = await (globalThis.fetch || fetch)(url, {
+      const response = await globalThis.fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1999,7 +1999,7 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for snapshot from Finnhub...');
-      const response = await (globalThis.fetch || fetch)(url, {
+      const response = await globalThis.fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
