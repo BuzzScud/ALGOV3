@@ -1652,30 +1652,7 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     });
   } catch (err) {
     console.error('History error:', err);
-    // CRITICAL: Sanitize error messages - never expose "fetch is not defined" or internal errors
-    const errorMsg = String(err?.message || 'Unknown error');
-    const hasInternalError = errorMsg.includes('fetch is not defined') || 
-                            errorMsg.includes('ReferenceError') ||
-                            errorMsg.includes('getFetch');
-    
-    if (hasInternalError) {
-      // This indicates a server configuration issue
-      console.error('CRITICAL: Internal server error in history endpoint:', errorMsg);
-      return res.status(500).json({ 
-        error: 'Internal server error',
-        hint: 'The server is experiencing technical difficulties. Please try again later.'
-      });
-    }
-    
-    // For other errors, provide sanitized message
-    const sanitizedMsg = errorMsg
-      .replace(/is not defined|ReferenceError|undefined/g, 'invalid input')
-      .substring(0, 200);
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch historical data',
-      hint: sanitizedMsg || 'Please try again later or contact support if the issue persists.'
-    });
+    res.status(500).json({ error: 'history failed', details: err.message });
   }
 });
 
@@ -1779,34 +1756,9 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
         return res.status(400).json({ error: quoteErr.message });
       }
       if (quoteErr.message.includes('Finnhub API error')) {
-        return res.status(400).json({ 
-          error: 'Stock data service returned an error',
-          hint: 'Please verify the stock symbol is correct and try again.'
-        });
+        return res.status(400).json({ error: quoteErr.message });
       }
-      
-      // CRITICAL: Check for internal server errors (fetch not defined, etc.)
-      const errorMsg = String(quoteErr?.message || 'Unknown error');
-      const hasInternalError = errorMsg.includes('fetch is not defined') ||
-                               errorMsg.includes('ReferenceError') ||
-                               errorMsg.includes('getFetch');
-      
-      if (hasInternalError) {
-        console.error('CRITICAL: Internal server error in tetration-projection:', errorMsg);
-        return res.status(500).json({ 
-          error: 'Internal server error',
-          hint: 'The server is experiencing technical difficulties. Please try again later.'
-        });
-      }
-      
-      // Generic fallback - sanitized message
-      const sanitizedMsg = errorMsg
-        .replace(/is not defined|ReferenceError|undefined/g, 'invalid input')
-        .substring(0, 200);
-      return res.status(400).json({ 
-        error: `Unable to fetch stock data for ${symbol.toUpperCase()}`,
-        hint: sanitizedMsg || 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
-      });
+      return res.status(400).json({ error: `Unable to fetch quote for ${symbol.toUpperCase()}. ${quoteErr.message}` });
     }
 
     // Generate tetration towers with variable height (tower height = dimensions)
@@ -2061,24 +2013,6 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
         });
       }
       // Generic fallback - sanitized message
-      // CRITICAL: Never expose "fetch is not defined" or other internal errors
-      // Check if error message contains internal implementation details
-      const hasInternalError = quoteErr.message && (
-        quoteErr.message.includes('fetch is not defined') ||
-        quoteErr.message.includes('ReferenceError') ||
-        quoteErr.message.includes('is not defined') ||
-        quoteErr.message.includes('getFetch')
-      );
-      
-      if (hasInternalError) {
-        // This indicates a server configuration issue, not a user error
-        console.error('CRITICAL: Internal server error detected:', quoteErr.message);
-        return res.status(500).json({ 
-          error: 'Internal server error',
-          hint: 'The server is experiencing technical difficulties. Please try again later or contact support.'
-        });
-      }
-      
       return res.status(400).json({ 
         error: `Unable to fetch stock data for ${symbol}`,
         hint: 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
@@ -2153,35 +2087,10 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
       lines
     });
   } catch (err) {
-    console.error('Snapshot error:', err);
-    // CRITICAL: Sanitize error messages - never leak internal variable names, stack traces, or implementation details
-    const errorMsg = String(err?.message || 'Unknown error');
-    
-    // Check if this is an internal server error (fetch not defined, etc.)
-    const hasInternalError = errorMsg.includes('fetch is not defined') ||
-                             errorMsg.includes('ReferenceError') ||
-                             errorMsg.includes('getFetch') ||
-                             errorMsg.includes('is not defined');
-    
-    if (hasInternalError) {
-      // This indicates a server configuration issue - don't expose to user
-      console.error('CRITICAL: Internal server error in snapshot endpoint:', errorMsg);
-      return res.status(500).json({ 
-        error: 'Internal server error',
-        hint: 'The server is experiencing technical difficulties. Please try again later or contact support.'
-      });
-    }
-    
-    // For other errors, sanitize and provide user-friendly message
-    const sanitizedMsg = errorMsg
-      .replace(/is not defined|ReferenceError|undefined|f\d+/gi, 'invalid input')
-      .replace(/at .*server\.mjs.*/g, '')
-      .substring(0, 200);
-    
-    res.status(500).json({ 
-      error: 'Snapshot generation failed',
-      hint: sanitizedMsg || 'Please verify the stock symbol is correct and try again. If the problem persists, the service may be temporarily unavailable.'
-    });
+    console.error(err);
+    // Generic fallback error - provide helpful message
+    const errorMsg = err.message || 'Unknown error occurred during snapshot generation';
+    res.status(500).json({ error: `Snapshot generation failed for ${symbol?.toUpperCase() || 'symbol'}. ${errorMsg}`, details: err.message });
   }
 });
 
