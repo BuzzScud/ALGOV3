@@ -861,14 +861,21 @@
         
         if (!tetrationResp || !tetrationResp.ok) {
           const errorText = await tetrationResp?.text().catch(() => tetrationResp?.statusText || lastTetrationError || 'Unknown error');
-          console.error('Tetration error after trying all paths:', errorText);
+          console.error('Tetration error after trying all paths:', {
+            status: tetrationResp?.status,
+            statusText: tetrationResp?.statusText,
+            errorText: errorText,
+            url: tetrationUrl
+          });
           let errorData;
           try {
             errorData = JSON.parse(errorText);
           } catch {
             errorData = { error: errorText || `HTTP ${tetrationResp?.status || 'Network'}: ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}` };
           }
-          throw new Error(errorData.error || errorData.details || errorData.message || `Server error: ${tetrationResp?.status || 'Network Error'}`);
+          // Prefer details field, then error field, then message field
+          const serverError = errorData.details || errorData.error || errorData.message;
+          throw new Error(serverError || `Server error (${tetrationResp?.status || 'Network'}): ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}`);
         }
         
         const tetration = await tetrationResp.json();
@@ -951,17 +958,26 @@
         statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-purple-300">Tetration projection complete!</div><div class="text-xs text-purple-400/80 mt-1">Depth prime: ${tetration.primesDepthUsed}${towerHeightInfo}${orbitalInfo} | Anchors: ${anchorInfo}</div><div class="text-xs text-gray-400 mt-2">Quadratic: ${tetration.oscillationAnalysis?.quadraticPattern.toFixed(6)} | Entropy: ${tetration.oscillationAnalysis?.entropy.toFixed(4)}</div></div></div>`;
         statusEl.className = 'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center';
       } catch (e) {
-        console.error(e);
-        // Handle generic error messages and provide better feedback
+        console.error('Tetration projection error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
         let errorMessage = e.message || 'An unknown error occurred';
         
-        // Replace generic error messages with more helpful ones
-        if (errorMessage.includes('Invalid stock symbol or API error') || 
-            errorMessage.includes('Please check the symbol and try again')) {
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
           errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
         }
         
-        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div></div></div>`;
+        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`;
         statusEl.className = 'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center';
       }
     }
@@ -1128,14 +1144,21 @@
         
         if (!snapResp || !snapResp.ok) {
           const errorText = await snapResp?.text().catch(() => snapResp?.statusText || lastError || 'Unknown error');
-          console.error('Snapshot error after trying all paths:', errorText);
+          console.error('Snapshot error after trying all paths:', {
+            status: snapResp?.status,
+            statusText: snapResp?.statusText,
+            errorText: errorText,
+            url: snapshotUrl
+          });
           let errorData;
           try {
             errorData = JSON.parse(errorText);
           } catch {
             errorData = { error: errorText || `HTTP ${snapResp?.status || 'Network'}: ${snapResp?.statusText || lastError || 'Failed to fetch'}` };
           }
-          throw new Error(errorData.error || errorData.details || errorData.message || `Server error: ${snapResp?.status || 'Network Error'}`);
+          // Prefer details field, then error field, then message field
+          const serverError = errorData.details || errorData.error || errorData.message;
+          throw new Error(serverError || `Server error (${snapResp?.status || 'Network'}): ${snapResp?.statusText || lastError || 'Failed to fetch'}`);
         }
         
         const snap = await snapResp.json();
@@ -1203,17 +1226,26 @@
         statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-green-300">Snapshot complete!</div><div class="text-xs text-green-400/80 mt-1">Depth prime: ${snap.primesDepthUsed}</div><div class="text-xs text-gray-400 mt-2">${osc}</div></div></div>`;
         statusEl.className = 'p-4 bg-green-900/20 border border-green-700 rounded-lg text-sm text-green-300 min-h-[60px] flex items-center';
       } catch (e) {
-        console.error(e);
-        // Handle generic error messages and provide better feedback
+        console.error('Tetration projection error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
         let errorMessage = e.message || 'An unknown error occurred';
         
-        // Replace generic error messages with more helpful ones
-        if (errorMessage.includes('Invalid stock symbol or API error') || 
-            errorMessage.includes('Please check the symbol and try again')) {
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
           errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
         }
         
-        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div></div></div>`;
+        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`;
         statusEl.className = 'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center';
       }
     }
