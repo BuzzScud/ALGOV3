@@ -240,10 +240,6 @@
               <span class="text-xs text-gray-400 mb-1">Low</span>
               <span id="stockLowMobile" class="text-sm text-white font-medium">-</span>
             </div>
-            <div class="flex flex-col col-span-2">
-              <span class="text-xs text-gray-400 mb-1">Volume</span>
-              <span id="stockVolumeMobile" class="text-sm text-white font-medium">-</span>
-            </div>
           </div>
         </div>
       </div>
@@ -336,7 +332,7 @@
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <span>Ready. Enter a symbol and click Tetration Projection or Generate Snapshot.</span>
+            <span>Ready. Search for a stock symbol first, then click Tetration Projection or Generate Snapshot.</span>
           </div>
         </div>
       </div>
@@ -447,10 +443,6 @@
                   <div class="flex flex-col">
                     <span class="text-xs text-gray-400 mb-1">Low</span>
                     <span id="stockLow" class="text-sm text-white font-medium">-</span>
-                  </div>
-                  <div class="flex flex-col col-span-2">
-                    <span class="text-xs text-gray-400 mb-1">Volume</span>
-                    <span id="stockVolume" class="text-sm text-white font-medium">-</span>
                   </div>
                 </div>
               </div>
@@ -631,7 +623,7 @@
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <span>Ready. Enter a symbol and click Tetration Projection or Generate Snapshot.</span>
+            <span>Ready. Search for a stock symbol first, then click Tetration Projection or Generate Snapshot.</span>
           </div>
         </div>
       </div>
@@ -1310,7 +1302,6 @@
         tickerDesktop.addEventListener('input', () => {
           tickerMobile.value = tickerDesktop.value;
         });
-        
         tickerDesktop.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -1321,7 +1312,6 @@
         tickerMobile.addEventListener('input', () => {
           tickerDesktop.value = tickerMobile.value;
         });
-        
         tickerMobile.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -2061,16 +2051,6 @@
         const open = quote.regularMarketOpen || quote.o || price;
         const high = quote.regularMarketHigh || quote.h || price;
         const low = quote.regularMarketLow || quote.l || price;
-        // Extract volume - check multiple possible fields
-        const volume = quote.regularMarketVolume || quote.v || quote.volume || quote.Volume || 0;
-        console.log('Volume data:', { 
-          regularMarketVolume: quote.regularMarketVolume, 
-          v: quote.v, 
-          volume: quote.volume, 
-          Volume: quote.Volume,
-          final: volume,
-          quoteKeys: Object.keys(quote)
-        });
         
         // Format numbers
         const formatPrice = (val) => val ? `$${val.toFixed(2)}` : '-';
@@ -2083,18 +2063,6 @@
           if (val === null || val === undefined) return '-';
           const sign = val >= 0 ? '+' : '';
           return `${sign}${val.toFixed(2)}%`;
-        };
-        const formatVolume = (val) => {
-          // Handle null, undefined, or NaN
-          if (val === null || val === undefined || isNaN(val)) return 'N/A';
-          // Convert to number if it's a string
-          const numVal = typeof val === 'string' ? parseFloat(val) : val;
-          if (isNaN(numVal) || numVal === 0) return '0';
-          // Format large numbers
-          if (numVal >= 1e9) return `${(numVal / 1e9).toFixed(2)}B`;
-          if (numVal >= 1e6) return `${(numVal / 1e6).toFixed(2)}M`;
-          if (numVal >= 1e3) return `${(numVal / 1e3).toFixed(2)}K`;
-          return numVal.toLocaleString();
         };
         
         // Determine color based on change
@@ -2119,7 +2087,6 @@
         updateElement('stockOpen', formatPrice(open));
         updateElement('stockHigh', formatPrice(high));
         updateElement('stockLow', formatPrice(low));
-        updateElement('stockVolume', formatVolume(volume));
         
         // Update mobile elements
         updateElement('stockSymbolMobile', symbol);
@@ -2131,7 +2098,6 @@
         updateElement('stockOpenMobile', formatPrice(open));
         updateElement('stockHighMobile', formatPrice(high));
         updateElement('stockLowMobile', formatPrice(low));
-        updateElement('stockVolumeMobile', formatVolume(volume));
         
         // Show stock info sections
         if (stockInfoEl) {
