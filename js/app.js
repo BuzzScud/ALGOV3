@@ -1,6 +1,7 @@
 // Preline Dashboard App - Main Application
 // API Keys
-const FINNHUB_API_KEY = 'd18ueuhr01qkcat4uip0d18ueuhr01qkcat4uipg';
+// API key is now handled by the backend server
+// const FINNHUB_API_KEY = 'd18ueuhr01qkcat4uip0d18ueuhr01qkcat4uipg';
 
 class PrelineDashboard {
   constructor() {
@@ -534,7 +535,7 @@ class PrelineDashboard {
 
   async fetchMarketQuote(symbol) {
     try {
-      const url = `http://localhost:8080/api/quote/${symbol}?period=1d`;
+      const url = `/api/quote/${symbol}?period=1d`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Fetch failed');
       
@@ -929,7 +930,9 @@ class PrelineDashboard {
 
   async fetchFinnhubNews(category = 'general') {
     try {
-      const url = `https://finnhub.io/api/v1/news?category=${category}&token=${FINNHUB_API_KEY}`;
+      // Finnhub calls are now proxied through our backend
+      // Note: If backend doesn't have a news endpoint, this will need to be handled differently
+      const url = `/api/news?category=${category}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch news');
       const data = await response.json();
@@ -1499,13 +1502,13 @@ class PrelineDashboard {
       const PRIME_STOPS = [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281];
       const depthPrime = PRIME_STOPS[this.tetrationState.selectedPrimeIndex];
 
-      const API_BASE = 'http://localhost:8081';
+      const API_BASE = '';  // Empty string for relative URLs
 
       // Fetch historical data
       let points = [];
       let baseLabels = [];
       try {
-        const histResp = await fetch(`${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
+        const histResp = await fetch(`/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
         if (histResp.ok) {
           const hist = await histResp.json();
           if (!hist.error) {
@@ -1525,7 +1528,7 @@ class PrelineDashboard {
       }
 
       // Fetch tetration projection
-      const tetrationResp = await fetch(`${API_BASE}/api/tetration-projection`, {
+      const tetrationResp = await fetch(`/api/tetration-projection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
@@ -1611,7 +1614,7 @@ class PrelineDashboard {
       console.error('Tetration projection error:', e);
       const statusEl = document.getElementById('tetration-status');
       if (statusEl) {
-        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${e.message}. Make sure the tetration server is running on port 8081.</div></div></div>`;
+        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${e.message}. Please check that the backend server is running.</div></div></div>`;
         statusEl.className = 'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center';
       }
     }
@@ -1634,13 +1637,13 @@ class PrelineDashboard {
       const PRIME_STOPS = [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281];
       const depthPrime = PRIME_STOPS[this.tetrationState.selectedPrimeIndex];
 
-      const API_BASE = 'http://localhost:8081';
+      const API_BASE = '';  // Empty string for relative URLs
 
       // Fetch historical data
       let points = [];
       let baseLabels = [];
       try {
-        const histResp = await fetch(`${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
+        const histResp = await fetch(`/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`);
         if (histResp.ok) {
           const hist = await histResp.json();
           if (!hist.error) {
@@ -1660,7 +1663,7 @@ class PrelineDashboard {
       }
 
       // Fetch snapshot
-      const snapResp = await fetch(`${API_BASE}/api/snapshot`, {
+      const snapResp = await fetch(`/api/snapshot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
@@ -1745,7 +1748,7 @@ class PrelineDashboard {
       console.error('Snapshot error:', e);
       const statusEl = document.getElementById('tetration-status');
       if (statusEl) {
-        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${e.message}. Make sure the tetration server is running on port 8081.</div></div></div>`;
+        statusEl.innerHTML = `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${e.message}. Please check that the backend server is running.</div></div></div>`;
         statusEl.className = 'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center';
       }
     }
@@ -1872,7 +1875,7 @@ class PrelineDashboard {
 
   async fetchStockQuote(symbol) {
     try {
-      const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+      const url = `/api/quote?symbol=${symbol}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch quote');
       return await response.json();
@@ -1887,7 +1890,8 @@ class PrelineDashboard {
       const resolutionMap = { '1D': { res: '5', from: now - 86400 }, '1W': { res: '30', from: now - 604800 }, '1M': { res: '60', from: now - 2592000 }, '1Y': { res: 'D', from: now - 31536000 } };
       const { res, from } = resolutionMap[period] || resolutionMap['1D'];
       
-      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=${res}&from=${from}&to=${now}&token=${FINNHUB_API_KEY}`;
+      // Use history endpoint instead of direct Finnhub candle API
+      const url = `/api/history?symbol=${symbol}&range=1mo&interval=${res}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch candles');
       return await response.json();
@@ -2231,10 +2235,10 @@ class PrelineDashboard {
   loadSampleMonitors() {
     if (this.monitors.length === 0) {
       this.monitors = [
-        { name: 'Finnhub API', url: 'https://finnhub.io/api/v1/quote?symbol=AAPL&token=' + FINNHUB_API_KEY, type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
+        { name: 'Backend API Quote', url: '/api/quote?symbol=AAPL', type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
         { name: 'Yahoo Finance API', url: 'https://query1.finance.yahoo.com/v8/finance/chart/AAPL', type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
-        { name: 'Finnhub News', url: 'https://finnhub.io/api/v1/news?category=general&token=' + FINNHUB_API_KEY, type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
-        { name: 'Finnhub Market Status', url: 'https://finnhub.io/api/v1/stock/market-status?exchange=US&token=' + FINNHUB_API_KEY, type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
+        { name: 'Backend API Health', url: '/api/health', type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
+        { name: 'Backend API History', url: '/api/history?symbol=AAPL&range=1mo&interval=1d', type: 'http', status: 'up', responseTime: 0, uptime: 100, paused: false, history: [], isLive: true },
       ];
       this.checkAllMonitors();
     }
@@ -2569,10 +2573,8 @@ class PrelineDashboard {
       // Check if it's a network/CORS error (proxy server not running)
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
         errorEl.innerHTML = `
-          <strong>Proxy Server Not Running</strong><br>
-          Please start the Python proxy server:<br>
-          <code>python3 server.py</code><br>
-          <small>The server will run on port 8080</small>
+          <strong>Backend Server Not Running</strong><br>
+          Please ensure the backend server is running and accessible.
         `;
       } else {
         errorEl.textContent = `Failed to fetch market data: ${error.message}`;
@@ -2605,7 +2607,7 @@ class PrelineDashboard {
   async fetchFibQuote(symbol) {
     try {
       // Use Yahoo Finance proxy - get latest quote from chart data
-      const url = `http://localhost:8080/api/quote/${symbol}?period=1d`;
+      const url = `/api/quote/${symbol}?period=1d`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Quote fetch failed');
       
@@ -2646,8 +2648,8 @@ class PrelineDashboard {
     try {
       const currentYear = new Date().getFullYear();
       
-      // Use Yahoo Finance proxy
-      const url = `http://localhost:8080/api/quote/${symbol}?period=${period}`;
+      // Use backend API
+      const url = `/api/quote/${symbol}?period=${period}`;
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
