@@ -1079,48 +1079,21 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        // Calculate API base URL - handle /trading/ subdirectory
-        // Get the base path from current location
-        const currentPath = window.location.pathname;
-        const currentUrl = window.location.href;
-        let basePath = '';
-        
-        // Check if we're in a /trading/ subdirectory
-        // Handle various path formats: /trading/, /trading/index.html, /trading, etc.
-        if (currentPath.includes('/trading')) {
-          // Extract the base path up to and including /trading
-          const parts = currentPath.split('/').filter(p => p);
-          const tradingIndex = parts.indexOf('trading');
-          if (tradingIndex >= 0) {
-            basePath = '/' + parts.slice(0, tradingIndex + 1).join('/');
-          } else {
-            basePath = '/trading';
-          }
-        } else if (currentUrl.includes('/trading')) {
-          // Fallback: check full URL if pathname doesn't have it
-          basePath = '/trading';
-        }
-        
-        const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
-        
-        // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath, 'Full URL:', currentUrl);
-        
+        // Use centralized API routes (from PDF analysis principles)
         let points = [];
         let baseLabels = [];
         try {
           // Try multiple API paths as fallback for history
           const historyPaths = [
-            `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
-            `${window.location.protocol}//${window.location.host}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
-            `${window.location.protocol}//${window.location.host}/trading/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
           ];
           
           let histResp = null;
           for (const historyUrl of historyPaths) {
             try {
               console.log('Trying history URL:', historyUrl);
-              histResp = await window.fetch(historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
               if (histResp.ok) {
                 console.log('Successfully fetched history from:', historyUrl);
                 break;
@@ -1363,48 +1336,21 @@
         const count = selectedProjCount;
         const depthPrime = PRIME_STOPS[selectedPrimeIndex];
 
-        // Calculate API base URL - handle /trading/ subdirectory
-        // Get the base path from current location
-        const currentPath = window.location.pathname;
-        const currentUrl = window.location.href;
-        let basePath = '';
-        
-        // Check if we're in a /trading/ subdirectory
-        // Handle various path formats: /trading/, /trading/index.html, /trading, etc.
-        if (currentPath.includes('/trading')) {
-          // Extract the base path up to and including /trading
-          const parts = currentPath.split('/').filter(p => p);
-          const tradingIndex = parts.indexOf('trading');
-          if (tradingIndex >= 0) {
-            basePath = '/' + parts.slice(0, tradingIndex + 1).join('/');
-          } else {
-            basePath = '/trading';
-          }
-        } else if (currentUrl.includes('/trading')) {
-          // Fallback: check full URL if pathname doesn't have it
-          basePath = '/trading';
-        }
-        
-        const API_BASE = `${window.location.protocol}//${window.location.host}${basePath}`;
-        
-        // Debug: log API base for troubleshooting
-        console.log('API_BASE:', API_BASE, 'Current path:', currentPath, 'Base path:', basePath, 'Full URL:', currentUrl);
-        
+        // Use centralized API routes (from PDF analysis principles)
         let points = [];
         let baseLabels = [];
         try {
           // Try multiple API paths as fallback for history
           const historyPaths = [
-            `${API_BASE}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
-            `${window.location.protocol}//${window.location.host}/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`,
-            `${window.location.protocol}//${window.location.host}/trading/api/history?symbol=${encodeURIComponent(symbol)}&range=1mo&interval=1d`
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
           ];
           
           let histResp = null;
           for (const historyUrl of historyPaths) {
             try {
               console.log('Trying history URL:', historyUrl);
-              histResp = await window.fetch(historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
               if (histResp.ok) {
                 console.log('Successfully fetched history from:', historyUrl);
                 break;

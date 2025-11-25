@@ -197,10 +197,14 @@ console.log('✓ Fetch function ready:', typeof fetchFn === 'function' ? 'YES' :
 const app = express();
 
 // CORS configuration - allow requests from any origin (since we're serving the frontend)
+// Enhanced CORS config based on PDF analysis principles
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*', // In production, consider restricting to specific origins
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true, // Allow cookies/credentials if needed
+  preflightContinue: false,
+  optionsSuccessStatus: 204 // Some legacy browsers need 204
 }));
 
 app.use(express.json());
