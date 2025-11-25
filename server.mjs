@@ -1432,7 +1432,25 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     const data = await response.json();
     
     // Check for Finnhub error response
-    if (data.s === 'no_data' || data.s === 'error') {
+    if (data.s === 'no_data') {
+      console.warn('Finnhub returned no_data for symbol:', symbol);
+      // Return empty data structure instead of error
+      return res.json({
+        result: [{
+          timestamp: [],
+          indicators: {
+            quote: [{
+              close: [],
+              open: [],
+              high: [],
+              low: [],
+              volume: []
+            }]
+          }
+        }]
+      });
+    }
+    if (data.s === 'error') {
       return res.status(404).json({ error: 'No historical data available for this symbol' });
     }
     
