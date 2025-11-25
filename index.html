@@ -496,15 +496,22 @@
         throw new Error('Chart.js not loaded');
       }
       
-      initializeChart();
+      // Wait for DOM to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeChart);
+      } else {
+        // DOM is already ready, but wait a tick to ensure canvas is rendered
+        setTimeout(initializeChart, 0);
+      }
     });
     
     function initializeChart() {
-    const ctx = document.getElementById('chart');
-    if (!ctx) {
-      document.body.innerHTML = '<div class="p-20 text-red-500">Error: Canvas element not found.</div>';
-      throw new Error('Canvas not found');
-    }
+      const ctx = document.getElementById('chart');
+      if (!ctx) {
+        console.error('Canvas element not found, retrying...');
+        setTimeout(initializeChart, 100);
+        return;
+      }
     
     // Register zoom plugin if available
     let zoomPluginAvailable = false;
