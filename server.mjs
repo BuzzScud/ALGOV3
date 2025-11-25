@@ -1,4 +1,28 @@
 // server.mjs (Node 18+ with "type": "module" in package.json)
+
+// CRITICAL: Polyfill fetch FIRST before any other imports
+// This ensures fetch is available globally for all subsequent code
+// Using undici as recommended in file-analysis-4.pdf for reliable fetch polyfill
+import { fetch, Headers, Request, Response } from 'undici';
+
+// Set fetch in globalThis if not already available (Node.js 18+ may have it, but ensure it's global)
+if (typeof globalThis.fetch !== 'function') {
+  globalThis.fetch = fetch;
+  globalThis.Headers = Headers;
+  globalThis.Request = Request;
+  globalThis.Response = Response;
+  console.log('✓ Fetch polyfill initialized from undici');
+} else {
+  console.log('✓ Native fetch already available in globalThis');
+}
+
+// Verify fetch is available
+if (typeof globalThis.fetch !== 'function') {
+  console.error('CRITICAL ERROR: fetch is not available after undici import!');
+  process.exit(1);
+}
+
+// Now import other dependencies
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
@@ -7,203 +31,9 @@ import https from 'https';
 import http from 'http';
 import { URL } from 'url';
 
-// CRITICAL: Ensure fetch is ALWAYS available in Node.js
-// Node.js 18+ has native fetch, but we need to ensure it's available globally
-// For older versions or if fetch is not available, create a polyfill
-
-// Check if native fetch exists
-// Node.js 18+ has fetch, but it might not be in globalThis by default
-let nativeFetch = null;
-try {
-  // Try to access fetch from various locations
-  if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
-    nativeFetch = globalThis.fetch;
-  } else if (typeof fetch === 'function') {
-    nativeFetch = fetch;
-  } else if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
-    nativeFetch = global.fetch;
-  } else {
-    // Node.js 18+ should have fetch, try to access it via import
-    // But we can't use dynamic import here, so we'll create a polyfill
-    // Actually, in Node.js 18+, fetch should be available globally
-    // If it's not, we need to use the polyfill
-  }
-} catch (e) {
-  // Ignore errors during check - we'll use polyfill
-  console.warn('Error checking for native fetch:', e.message);
-}
-
-// Always create/assign fetch to ensure it's available
-if (!nativeFetch) {
-  // Create fetch polyfill using Node.js https/http modules
-  const fetchPolyfill = function(url, options = {}) {
-    return new Promise((resolve, reject) => {
-      try {
-        const urlObj = typeof url === 'string' ? new URL(url) : url;
-        const protocol = urlObj.protocol === 'https:' ? https : http;
-        const method = options.method || 'GET';
-        const headers = options.headers || {};
-        
-        const reqOptions = {
-          hostname: urlObj.hostname,
-          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
-          path: urlObj.pathname + urlObj.search,
-          method: method,
-          headers: headers,
-          timeout: 10000 // 10 second timeout
-        };
-        
-        const req = protocol.request(reqOptions, (res) => {
-          let data = '';
-          res.on('data', (chunk) => { data += chunk; });
-          res.on('end', () => {
-            const response = {
-              ok: res.statusCode >= 200 && res.statusCode < 300,
-              status: res.statusCode,
-              statusText: res.statusMessage || '',
-              headers: res.headers,
-              text: () => Promise.resolve(data),
-              json: () => {
-                try {
-                  return Promise.resolve(JSON.parse(data));
-                } catch (e) {
-                  return Promise.reject(new Error('Invalid JSON: ' + e.message));
-                }
-              }
-            };
-            resolve(response);
-          });
-        });
-        
-        req.on('error', (err) => reject(err));
-        req.on('timeout', () => {
-          req.destroy();
-          reject(new Error('Request timeout'));
-        });
-        
-        // Handle abort signal
-        if (options.signal) {
-          if (options.signal.aborted) {
-            req.destroy();
-            reject(new Error('Request aborted'));
-            return;
-          }
-          options.signal.addEventListener('abort', () => {
-            req.destroy();
-            reject(new Error('Request aborted'));
-          });
-        }
-        
-        if (options.body) {
-          req.write(options.body);
-        }
-        req.end();
-      } catch (err) {
-        reject(err);
-      }
-    });
-  };
-  
-  // CRITICAL: Assign polyfill to globalThis.fetch BEFORE creating AbortController
-  if (typeof globalThis !== 'undefined') {
-    globalThis.fetch = fetchPolyfill;
-  }
-  if (typeof global !== 'undefined') {
-    global.fetch = fetchPolyfill;
-  }
-  
-  // AbortController polyfill
-  if (typeof globalThis.AbortController === 'undefined') {
-    globalThis.AbortController = class AbortController {
-      constructor() {
-        this.signal = new AbortSignal();
-      }
-      abort() {
-        this.signal.aborted = true;
-        if (this.signal.onabort) {
-          this.signal.onabort();
-        }
-      }
-    };
-  }
-  
-  // AbortSignal polyfill
-  if (typeof globalThis.AbortSignal === 'undefined') {
-    globalThis.AbortSignal = class AbortSignal {
-      constructor() {
-        this.aborted = false;
-        this.onabort = null;
-      }
-      addEventListener(event, handler) {
-        if (event === 'abort') {
-          this.onabort = handler;
-        }
-      }
-      static timeout(ms) {
-        const controller = new globalThis.AbortController();
-        setTimeout(() => controller.abort(), ms);
-        return controller.signal;
-      }
-    };
-  }
-  
-  console.log('✓ Using fetch polyfill (Node.js built-in https/http)');
-} else {
-  // Use native fetch but ensure it's available globally
-  if (typeof globalThis !== 'undefined') {
-    globalThis.fetch = nativeFetch;
-  }
-  if (typeof global !== 'undefined') {
-    global.fetch = nativeFetch;
-  }
-  
-  // Ensure AbortSignal.timeout exists (Node.js 18+ should have it)
-  if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
-    AbortSignal.timeout = function(ms) {
-      const controller = new AbortController();
-      setTimeout(() => controller.abort(), ms);
-      return controller.signal;
-    };
-  }
-  console.log('✓ Using native fetch (Node.js 18+)');
-}
-
-// CRITICAL: Ensure fetch is ALWAYS available in globalThis
-// Even if native fetch exists, make sure it's in globalThis
-if (typeof globalThis !== 'undefined') {
-  if (typeof globalThis.fetch !== 'function') {
-    // If we have nativeFetch, use it; otherwise use polyfill
-    if (nativeFetch && typeof nativeFetch === 'function') {
-      globalThis.fetch = nativeFetch;
-      console.log('✓ Assigned native fetch to globalThis.fetch');
-    } else {
-      // This should not happen if polyfill was created
-      console.error('CRITICAL ERROR: No fetch available (neither native nor polyfill)!');
-      process.exit(1);
-    }
-  } else {
-    console.log('✓ Verified: fetch is available in globalThis');
-  }
-} else {
-  console.error('CRITICAL ERROR: globalThis is not available!');
-  process.exit(1);
-}
-
-// CRITICAL: Store fetch function in a module-level variable
-// This ensures fetch is always accessible even if globalThis has scope issues
-let moduleFetch = null;
-
-// Initialize moduleFetch from globalThis.fetch (set during polyfill initialization above)
-if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
-  moduleFetch = globalThis.fetch;
-  console.log('✓ Module fetch initialized from globalThis.fetch');
-} else if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
-  moduleFetch = global.fetch;
-  console.log('✓ Module fetch initialized from global.fetch');
-} else {
-  console.error('CRITICAL ERROR: fetch not available in globalThis or global after initialization!');
-  process.exit(1);
-}
+// Fetch is now guaranteed to be available via undici polyfill above
+// Store it in a module-level variable for reliable access
+const moduleFetch = globalThis.fetch;
 
 // CRITICAL: Create a module-level fetch function that always works
 // This ensures fetch is available even if globalThis.fetch has scope issues
