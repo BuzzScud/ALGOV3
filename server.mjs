@@ -3,6 +3,129 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
+
+// Ensure fetch is available - Node.js 18+ has native fetch, but ensure it's available
+// For older Node.js versions or if fetch is not available, create a polyfill
+if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
+  // Create fetch polyfill using Node.js https/http modules
+  globalThis.fetch = function(url, options = {}) {
+    return new Promise((resolve, reject) => {
+      try {
+        const urlObj = typeof url === 'string' ? new URL(url) : url;
+        const protocol = urlObj.protocol === 'https:' ? https : http;
+        const method = options.method || 'GET';
+        const headers = options.headers || {};
+        
+        const reqOptions = {
+          hostname: urlObj.hostname,
+          port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+          path: urlObj.pathname + urlObj.search,
+          method: method,
+          headers: headers,
+          timeout: 10000 // 10 second timeout
+        };
+        
+        const req = protocol.request(reqOptions, (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            const response = {
+              ok: res.statusCode >= 200 && res.statusCode < 300,
+              status: res.statusCode,
+              statusText: res.statusMessage || '',
+              headers: res.headers,
+              text: () => Promise.resolve(data),
+              json: () => {
+                try {
+                  return Promise.resolve(JSON.parse(data));
+                } catch (e) {
+                  return Promise.reject(new Error('Invalid JSON: ' + e.message));
+                }
+              }
+            };
+            resolve(response);
+          });
+        });
+        
+        req.on('error', (err) => reject(err));
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+        
+        // Handle abort signal
+        if (options.signal) {
+          if (options.signal.aborted) {
+            req.destroy();
+            reject(new Error('Request aborted'));
+            return;
+          }
+          options.signal.addEventListener('abort', () => {
+            req.destroy();
+            reject(new Error('Request aborted'));
+          });
+        }
+        
+        if (options.body) {
+          req.write(options.body);
+        }
+        req.end();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+  
+  // AbortController polyfill
+  if (typeof globalThis.AbortController === 'undefined') {
+    globalThis.AbortController = class AbortController {
+      constructor() {
+        this.signal = new AbortSignal();
+      }
+      abort() {
+        this.signal.aborted = true;
+        if (this.signal.onabort) {
+          this.signal.onabort();
+        }
+      }
+    };
+  }
+  
+  // AbortSignal polyfill
+  if (typeof globalThis.AbortSignal === 'undefined') {
+    globalThis.AbortSignal = class AbortSignal {
+      constructor() {
+        this.aborted = false;
+        this.onabort = null;
+      }
+      addEventListener(event, handler) {
+        if (event === 'abort') {
+          this.onabort = handler;
+        }
+      }
+      static timeout(ms) {
+        const controller = new globalThis.AbortController();
+        setTimeout(() => controller.abort(), ms);
+        return controller.signal;
+      }
+    };
+  }
+  
+  console.log('✓ Using fetch polyfill (Node.js built-in https/http)');
+} else {
+  // Ensure AbortSignal.timeout exists (Node.js 18+ should have it)
+  if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
+    AbortSignal.timeout = function(ms) {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), ms);
+      return controller.signal;
+    };
+  }
+  console.log('✓ Using native fetch (Node.js 18+)');
+}
 
 const app = express();
 
@@ -1517,9 +1640,26 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol.toUpperCase())}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
     console.log('Fetching history from Finnhub:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
     
-    const response = await fetch(url);
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Node.js/Express Server',
+          'Accept': 'application/json'
+        }
+      });
+    } catch (fetchError) {
+      console.error('Network error fetching history from Finnhub:', fetchError);
+      if (fetchError.message.includes('timeout') || fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('ECONNREFUSED')) {
+        throw new Error('Cannot reach Finnhub API. Server may be blocked from making outbound requests.');
+      }
+      throw new Error(`Network error: ${fetchError.message}`);
+    }
+    
     if (!response.ok) {
-      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => response.statusText);
+      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
     }
     
     const data = await response.json();
