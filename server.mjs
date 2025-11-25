@@ -189,10 +189,31 @@ if (typeof globalThis !== 'undefined') {
   process.exit(1);
 }
 
-// Also ensure it's available as a module-level constant for direct use
-// In ES modules, we can't use 'var', but we can create a reference
-const fetchFn = globalThis.fetch;
+// CRITICAL: Create a module-level fetch function that always works
+// This ensures fetch is available even if globalThis.fetch has scope issues
+function getFetch() {
+  // Try multiple sources in order of preference
+  if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+    return globalThis.fetch;
+  }
+  if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
+    return global.fetch;
+  }
+  if (typeof fetch === 'function') {
+    return fetch;
+  }
+  // This should never happen if initialization worked, but provide fallback
+  console.error('CRITICAL: fetch not available in getFetch()');
+  throw new Error('fetch is not available');
+}
+
+// Verify fetch is available
+const fetchFn = getFetch();
 console.log('✓ Fetch function ready:', typeof fetchFn === 'function' ? 'YES' : 'NO');
+if (typeof fetchFn !== 'function') {
+  console.error('CRITICAL ERROR: fetchFn is not a function!');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -1561,7 +1582,7 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     let response;
     try {
-      response = await globalThis.fetch(url, {
+      response = await getFetch()(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1713,7 +1734,7 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     
     let response;
     try {
-      response = await globalThis.fetch(url, {
+      response = await getFetch()(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1811,7 +1832,7 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for tetration-projection from Finnhub...');
-      const response = await globalThis.fetch(url, {
+      const response = await getFetch()(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -2027,7 +2048,7 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for snapshot from Finnhub...');
-      const response = await globalThis.fetch(url, {
+      const response = await getFetch()(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
