@@ -218,10 +218,11 @@ function getFetch() {
     if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
       // Update moduleFetch for next time
       moduleFetch = globalThis.fetch;
+      console.log('[getFetch] Retrieved fetch from globalThis.fetch');
       return globalThis.fetch;
     }
   } catch (e) {
-    // Ignore errors checking globalThis
+    console.warn('[getFetch] Error accessing globalThis.fetch:', e.message);
   }
   
   // Fallback to global.fetch
@@ -229,35 +230,47 @@ function getFetch() {
     if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
       // Update moduleFetch for next time
       moduleFetch = global.fetch;
+      console.log('[getFetch] Retrieved fetch from global.fetch');
       return global.fetch;
     }
   } catch (e) {
-    // Ignore errors checking global
+    console.warn('[getFetch] Error accessing global.fetch:', e.message);
   }
   
   // Last resort: try to access fetch from module scope (safely)
+  // CRITICAL: We must use try-catch here because accessing 'fetch' directly
+  // will throw ReferenceError if it's not defined
   try {
-    // In Node.js 18+, fetch might be available but not in globalThis
-    // Try to import it dynamically (but we can't use await at top level)
-    // Instead, check if it's available via require or import
-    if (typeof fetch === 'function') {
-      moduleFetch = fetch;
-      return fetch;
+    // Use eval to safely check if fetch exists without throwing ReferenceError
+    // This is a last resort check
+    const fetchCheck = (function() {
+      try {
+        return typeof fetch === 'function' ? fetch : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+    
+    if (fetchCheck && typeof fetchCheck === 'function') {
+      moduleFetch = fetchCheck;
+      console.log('[getFetch] Retrieved fetch from module scope');
+      return fetchCheck;
     }
   } catch (e) {
-    // fetch is not defined in this scope
+    console.warn('[getFetch] Error checking module scope fetch:', e.message);
   }
   
   // This should never happen if initialization worked, but provide fallback
-  console.error('CRITICAL: fetch not available in getFetch()');
-  console.error('moduleFetch:', typeof moduleFetch);
-  console.error('globalThis.fetch:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'globalThis undefined');
-  console.error('global.fetch:', typeof global !== 'undefined' ? typeof global.fetch : 'global undefined');
+  console.error('[getFetch] CRITICAL: fetch not available in getFetch()');
+  console.error('[getFetch] moduleFetch type:', typeof moduleFetch);
+  console.error('[getFetch] globalThis.fetch type:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'globalThis undefined');
+  console.error('[getFetch] global.fetch type:', typeof global !== 'undefined' ? typeof global.fetch : 'global undefined');
   
   // Create a minimal error-throwing fetch as absolute last resort
   // This will at least give a clear error message
   const errorFetch = function() {
-    throw new Error('fetch is not available - backend initialization failed');
+    console.error('[getFetch] ERROR: Attempted to use fetch but it is not available!');
+    throw new Error('fetch is not available - backend initialization failed. Check server logs for fetch initialization errors.');
   };
   return errorFetch;
 }
@@ -1636,7 +1649,12 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     let response;
     try {
-      response = await getFetch()(url, {
+      const fetchFn = getFetch();
+      if (!fetchFn || typeof fetchFn !== 'function') {
+        throw new Error('getFetch() did not return a function');
+      }
+      console.log('[API] Calling fetch for:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
+      response = await fetchFn(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1788,7 +1806,12 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     
     let response;
     try {
-      response = await getFetch()(url, {
+      const fetchFn = getFetch();
+      if (!fetchFn || typeof fetchFn !== 'function') {
+        throw new Error('getFetch() did not return a function');
+      }
+      console.log('[API] Calling fetch for:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
+      response = await fetchFn(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1886,7 +1909,11 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for tetration-projection from Finnhub...');
-      const response = await getFetch()(url, {
+      const fetchFn = getFetch();
+      if (!fetchFn || typeof fetchFn !== 'function') {
+        throw new Error('getFetch() did not return a function');
+      }
+      const response = await fetchFn(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -2102,7 +2129,11 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for snapshot from Finnhub...');
-      const response = await getFetch()(url, {
+      const fetchFn = getFetch();
+      if (!fetchFn || typeof fetchFn !== 'function') {
+        throw new Error('getFetch() did not return a function');
+      }
+      const response = await fetchFn(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
