@@ -827,8 +827,10 @@
         
         let tetrationResp = null;
         let lastTetrationError = null;
+        let lastTetrationUrl = null;
         
         for (const tetrationUrl of tetrationPaths) {
+          lastTetrationUrl = tetrationUrl; // Store for error logging
           try {
             console.log('Trying tetration URL:', tetrationUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
@@ -865,7 +867,7 @@
             status: tetrationResp?.status,
             statusText: tetrationResp?.statusText,
             errorText: errorText,
-            url: tetrationUrl
+            url: lastTetrationUrl || 'Unknown URL'
           });
           let errorData;
           try {
@@ -1110,8 +1112,10 @@
         
         let snapResp = null;
         let lastError = null;
+        let lastSnapshotUrl = null;
         
         for (const snapshotUrl of apiPaths) {
+          lastSnapshotUrl = snapshotUrl; // Store for error logging
           try {
             console.log('Trying snapshot URL:', snapshotUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
@@ -1148,7 +1152,7 @@
             status: snapResp?.status,
             statusText: snapResp?.statusText,
             errorText: errorText,
-            url: snapshotUrl
+            url: lastSnapshotUrl || 'Unknown URL'
           });
           let errorData;
           try {
