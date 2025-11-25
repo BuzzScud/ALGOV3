@@ -1,7 +1,6 @@
 // server.mjs (Node 18+ with "type": "module" in package.json)
 import express from 'express';
 import cors from 'cors';
-import YahooFinance from 'yahoo-finance2';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -21,8 +20,9 @@ app.use((req, res, next) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Create yahooFinance instance
-const yahooFinance = new YahooFinance();
+// Finnhub API configuration
+const FINNHUB_API_KEY = 'd18ueuhr01qkcat4uip0d18ueuhr01qkcat4uipg';
+const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 
 // Helper function to register API routes (supports both root and /trading/ paths)
 // This must be defined before routes are registered
@@ -1339,7 +1339,7 @@ app.get('/trading/api/test', (req, res) => {
 console.log('✓ Registered health check endpoints: GET /api/health and GET /trading/api/health');
 console.log('✓ Registered test endpoints: GET /api/test and GET /trading/api/test');
 
-// Yahoo Finance data endpoints
+// Finnhub API endpoints
 // Note: registerApiRoute function is defined earlier in the file
 // IMPORTANT: These routes are registered BEFORE static middleware (which is at the end of the file)
 registerApiRoute('get', '/api/quote', async (req, res) => {
@@ -1353,15 +1353,35 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
       return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
     }
     
-    const quotes = await yahooFinance.quote(symbol.toUpperCase());
-    const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
+    // Fetch quote from Finnhub
+    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
+    console.log('Fetching quote from Finnhub:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform Finnhub response to match expected format
+    const quote = {
+      symbol: symbol.toUpperCase(),
+      regularMarketPrice: data.c || data.pc || 0, // current price or previous close
+      regularMarketPreviousClose: data.pc || data.c || 0,
+      regularMarketOpen: data.o || data.pc || 0,
+      regularMarketHigh: data.h || data.c || 0,
+      regularMarketLow: data.l || data.c || 0,
+      regularMarketVolume: data.v || 0,
+      regularMarketTime: data.t ? new Date(data.t * 1000).toISOString() : new Date().toISOString(),
+      // Additional Finnhub fields
+      change: data.d || 0,
+      percentChange: data.dp || 0
+    };
+    
     res.json(quote);
   } catch (err) {
     console.error('Quote error:', err);
-    // Handle yahoo-finance2 specific errors
-    if (err.message && (err.message.includes('string did not match') || err.message.includes('expected pattern'))) {
-      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
-    }
     res.status(500).json({ error: 'quote failed', details: err.message });
   }
 });
@@ -1377,9 +1397,8 @@ registerApiRoute('get', '/api/history', async (req, res) => {
       return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
     }
     
-    // Use historical module for historical data
-    // Calculate date ranges
-    const now = Date.now();
+    // Calculate date ranges for Finnhub
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
     const rangeDays = {
       '1mo': 30,
       '3mo': 90,
@@ -1387,70 +1406,57 @@ registerApiRoute('get', '/api/history', async (req, res) => {
       '5d': 5
     };
     const days = rangeDays[range] || 30;
-    const startDate = new Date(now - days * 24 * 60 * 60 * 1000);
-    const endDate = new Date(now);
+    const from = now - (days * 24 * 60 * 60);
+    const to = now;
     
-    // Use historical if available, otherwise return mock structure
-    try {
-      // Try to use historical module
-      if (typeof yahooFinance.historical === 'function') {
-        const result = await yahooFinance.historical(symbol.toUpperCase(), {
-          period1: Math.floor(startDate.getTime() / 1000),
-          period2: Math.floor(endDate.getTime() / 1000),
-          interval: interval === '1d' ? '1d' : '1d'
-        });
-        
-        // Transform to expected format
-        const timestamps = result.map(d => new Date(d.date).getTime() / 1000);
-        const closes = result.map(d => d.close);
-        
-        res.json({
-          result: [{
-            timestamp: timestamps,
-            indicators: {
-              quote: [{
-                close: closes
-              }]
-            }
-          }]
-        });
-        return;
-      }
-    } catch (histErr) {
-      console.warn('Historical module error:', histErr.message);
-      // If it's a validation error, return it immediately
-      if (histErr.message && (histErr.message.includes('string did not match') || histErr.message.includes('expected pattern'))) {
-        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
-      }
+    // Map interval to Finnhub resolution
+    const resolutionMap = {
+      '1d': 'D',
+      '1h': '60',
+      '5m': '5',
+      '15m': '15',
+      '30m': '30',
+      '1m': '1'
+    };
+    const resolution = resolutionMap[interval] || 'D';
+    
+    // Fetch historical data from Finnhub
+    const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol.toUpperCase())}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+    console.log('Fetching history from Finnhub:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
     }
     
-    // Fallback: return current quote as a single data point
-    let price = 0;
-    try {
-      const quotes = await yahooFinance.quote(symbol.toUpperCase());
-      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-      price = quote?.regularMarketPrice || 0;
-    } catch (quoteErr) {
-      console.error('Quote error in history fallback:', quoteErr);
-      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
-        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
-      }
-      // If quote fails, return empty data instead of throwing
-      price = 0;
+    const data = await response.json();
+    
+    // Check for Finnhub error response
+    if (data.s === 'no_data' || data.s === 'error') {
+      return res.status(404).json({ error: 'No historical data available for this symbol' });
     }
+    
+    // Transform Finnhub response to expected format
+    // Finnhub returns: { s: 'ok', t: [timestamps], c: [closes], o: [opens], h: [highs], l: [lows], v: [volumes] }
+    const timestamps = data.t || [];
+    const closes = data.c || [];
     
     res.json({
       result: [{
-        timestamp: [Math.floor(Date.now() / 1000)],
+        timestamp: timestamps,
         indicators: {
           quote: [{
-            close: [price]
+            close: closes,
+            open: data.o || closes,
+            high: data.h || closes,
+            low: data.l || closes,
+            volume: data.v || []
           }]
         }
       }]
     });
   } catch (err) {
-    console.error(err);
+    console.error('History error:', err);
     res.status(500).json({ error: 'history failed', details: err.message });
   }
 });
@@ -1478,20 +1484,20 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     
     if (!Number.isInteger(+count) || +count < 1 || +count > 12) return res.status(400).json({ error: 'count must be between 1 and 12' });
 
-    // Get latest price
+    // Get latest price from Finnhub
     let lastPrice;
     try {
-      const quotes = await yahooFinance.quote(symbol.toUpperCase());
-      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-      const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
-      if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
-      lastPrice = Number(lastTrade);
+      const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      lastPrice = Number(data.c || data.pc || 0); // current price or previous close
+      if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
     } catch (quoteErr) {
       console.error('Quote error in tetration-projection:', quoteErr);
-      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
-        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
-      }
-      throw quoteErr;
+      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
     }
 
     // Generate tetration towers with variable height (tower height = dimensions)
@@ -1631,20 +1637,20 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     
     if (!Number.isInteger(+count) || +count < 1 || +count > 12) return res.status(400).json({ error: 'count must be between 1 and 12' });
 
-    // Get latest price as seed for projections
+    // Get latest price from Finnhub as seed for projections
     let lastPrice;
     try {
-      const quotes = await yahooFinance.quote(symbol.toUpperCase());
-      const quote = Array.isArray(quotes) && quotes.length > 0 ? quotes[0] : quotes;
-      const lastTrade = quote?.regularMarketPrice ?? quote?.postMarketPrice ?? quote?.preMarketPrice;
-      if (lastTrade == null) return res.status(500).json({ error: 'no market price available' });
-      lastPrice = Number(lastTrade);
+      const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      lastPrice = Number(data.c || data.pc || 0); // current price or previous close
+      if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
     } catch (quoteErr) {
       console.error('Quote error in snapshot:', quoteErr);
-      if (quoteErr.message && (quoteErr.message.includes('string did not match') || quoteErr.message.includes('expected pattern'))) {
-        return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
-      }
-      throw quoteErr;
+      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
     }
 
     // Triads setup

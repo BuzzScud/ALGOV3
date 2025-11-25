@@ -22,8 +22,7 @@
     "chartjs-plugin-zoom": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "preline": "^3.2.3",
-    "yahoo-finance2": "^2.4.0"
+    "preline": "^3.2.3"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.18"
