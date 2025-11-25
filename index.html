@@ -528,8 +528,27 @@
           // Distinguish between network errors and HTTP errors
           const is5xx = response.status >= 500 && response.status < 600;
           const isNetwork = response.status === 0 || !response.status;
+          const is4xx = response.status >= 400 && response.status < 500;
           
-          // Retry on 5xx or network errors, but not on 4xx (client errors)
+          // CRITICAL: Never retry on 4xx errors (client errors like 400 Bad Request)
+          // 4xx errors indicate invalid input - retrying won't help and creates spam
+          if (is4xx) {
+            const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+            }
+            console.warn('API error (4xx - not retrying)', { url, status: response.status, body: errorText.slice(0, 500) });
+            const err = new Error(errorData.error || errorData.hint || `HTTP ${response.status}: ${response.statusText}`);
+            err.status = response.status;
+            err.body = errorText;
+            err.errorData = errorData;
+            throw err;
+          }
+          
+          // Retry on 5xx or network errors only
           if ((is5xx || isNetwork) && attempt < maxRetries - 1) {
             const delay = Math.pow(2, attempt) * 250; // Exponential backoff
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -537,7 +556,7 @@
             continue;
           }
           
-          // For 4xx errors or last attempt, get error details and throw
+          // For other errors or last attempt, get error details and throw
           const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
           console.warn('API error', { url, status: response.status, body: errorText.slice(0, 500) });
           throw new Error(`API ${response.status} ${response.statusText} at ${url}: ${errorText.slice(0, 200)}`);
@@ -1396,9 +1415,12 @@
           } catch {
             errorData = { error: errorText || `HTTP ${snapResp?.status || 'Network'}: ${snapResp?.statusText || lastError || 'Failed to fetch'}` };
           }
-          // Prefer details field, then error field, then message field
-          const serverError = errorData.details || errorData.error || errorData.message;
-          throw new Error(serverError || `Server error (${snapResp?.status || 'Network'}): ${snapResp?.statusText || lastError || 'Failed to fetch'}`);
+          // Prefer hint field (user-friendly), then error field, then details field
+          const serverError = errorData.hint || errorData.error || errorData.details || errorData.message;
+          const err = new Error(serverError || `Server error (${snapResp?.status || 'Network'}): ${snapResp?.statusText || lastError || 'Failed to fetch'}`);
+          err.status = snapResp?.status;
+          err.errorData = errorData;
+          throw err;
         }
         
         const snap = await snapResp.json();
