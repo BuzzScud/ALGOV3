@@ -1071,9 +1071,8 @@
 
         // Try multiple API paths as fallback
         const tetrationPaths = [
-          `${API_BASE}/api/tetration-projection`,
-          `${window.location.protocol}//${window.location.host}/api/tetration-projection`,
-          `${window.location.protocol}//${window.location.host}/trading/api/tetration-projection`
+          `/api/tetration-projection`,
+          `/trading/api/tetration-projection`
         ];
         
         let tetrationResp = null;
