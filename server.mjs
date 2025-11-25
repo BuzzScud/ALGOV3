@@ -238,27 +238,11 @@ function getFetch() {
   }
   
   // Last resort: try to access fetch from module scope (safely)
-  // CRITICAL: We must use try-catch here because accessing 'fetch' directly
-  // will throw ReferenceError if it's not defined
-  try {
-    // Use eval to safely check if fetch exists without throwing ReferenceError
-    // This is a last resort check
-    const fetchCheck = (function() {
-      try {
-        return typeof fetch === 'function' ? fetch : null;
-      } catch (e) {
-        return null;
-      }
-    })();
-    
-    if (fetchCheck && typeof fetchCheck === 'function') {
-      moduleFetch = fetchCheck;
-      console.log('[getFetch] Retrieved fetch from module scope');
-      return fetchCheck;
-    }
-  } catch (e) {
-    console.warn('[getFetch] Error checking module scope fetch:', e.message);
-  }
+  // CRITICAL: We must use a safe method here because accessing 'fetch' directly
+  // will throw ReferenceError if it's not defined in this scope
+  // In ES modules, we can't use eval, so we skip this check
+  // If we got here, fetch is not available in globalThis or global, which means
+  // the initialization failed - this should never happen
   
   // This should never happen if initialization worked, but provide fallback
   console.error('[getFetch] CRITICAL: fetch not available in getFetch()');
