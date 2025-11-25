@@ -235,12 +235,31 @@ function getFetch() {
     // Ignore errors checking global
   }
   
+  // Last resort: try to access fetch from module scope (safely)
+  try {
+    // In Node.js 18+, fetch might be available but not in globalThis
+    // Try to import it dynamically (but we can't use await at top level)
+    // Instead, check if it's available via require or import
+    if (typeof fetch === 'function') {
+      moduleFetch = fetch;
+      return fetch;
+    }
+  } catch (e) {
+    // fetch is not defined in this scope
+  }
+  
   // This should never happen if initialization worked, but provide fallback
   console.error('CRITICAL: fetch not available in getFetch()');
   console.error('moduleFetch:', typeof moduleFetch);
   console.error('globalThis.fetch:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'globalThis undefined');
   console.error('global.fetch:', typeof global !== 'undefined' ? typeof global.fetch : 'global undefined');
-  throw new Error('fetch is not available');
+  
+  // Create a minimal error-throwing fetch as absolute last resort
+  // This will at least give a clear error message
+  const errorFetch = function() {
+    throw new Error('fetch is not available - backend initialization failed');
+  };
+  return errorFetch;
 }
 
 // Verify fetch is available
