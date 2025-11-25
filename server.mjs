@@ -7,11 +7,28 @@ import https from 'https';
 import http from 'http';
 import { URL } from 'url';
 
-// Ensure fetch is available - Node.js 18+ has native fetch, but ensure it's available
-// For older Node.js versions or if fetch is not available, create a polyfill
-if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
+// CRITICAL: Ensure fetch is ALWAYS available in Node.js
+// Node.js 18+ has native fetch, but we need to ensure it's available globally
+// For older versions or if fetch is not available, create a polyfill
+
+// Check if native fetch exists
+let nativeFetch = null;
+try {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+    nativeFetch = globalThis.fetch;
+  } else if (typeof fetch === 'function') {
+    nativeFetch = fetch;
+  } else if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
+    nativeFetch = global.fetch;
+  }
+} catch (e) {
+  // Ignore errors during check
+}
+
+// Always create/assign fetch to ensure it's available
+if (!nativeFetch) {
   // Create fetch polyfill using Node.js https/http modules
-  globalThis.fetch = function(url, options = {}) {
+  const fetchPolyfill = function(url, options = {}) {
     return new Promise((resolve, reject) => {
       try {
         const urlObj = typeof url === 'string' ? new URL(url) : url;
@@ -79,6 +96,14 @@ if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
     });
   };
   
+  // CRITICAL: Assign polyfill to globalThis.fetch BEFORE creating AbortController
+  if (typeof globalThis !== 'undefined') {
+    globalThis.fetch = fetchPolyfill;
+  }
+  if (typeof global !== 'undefined') {
+    global.fetch = fetchPolyfill;
+  }
+  
   // AbortController polyfill
   if (typeof globalThis.AbortController === 'undefined') {
     globalThis.AbortController = class AbortController {
@@ -116,6 +141,14 @@ if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
   
   console.log('✓ Using fetch polyfill (Node.js built-in https/http)');
 } else {
+  // Use native fetch but ensure it's available globally
+  if (typeof globalThis !== 'undefined') {
+    globalThis.fetch = nativeFetch;
+  }
+  if (typeof global !== 'undefined') {
+    global.fetch = nativeFetch;
+  }
+  
   // Ensure AbortSignal.timeout exists (Node.js 18+ should have it)
   if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
     AbortSignal.timeout = function(ms) {
@@ -126,6 +159,16 @@ if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
   }
   console.log('✓ Using native fetch (Node.js 18+)');
 }
+
+// CRITICAL: Verify fetch is available in globalThis
+if (typeof globalThis === 'undefined' || typeof globalThis.fetch !== 'function') {
+  console.error('CRITICAL ERROR: fetch is not available in globalThis after initialization!');
+  console.error('globalThis type:', typeof globalThis);
+  console.error('globalThis.fetch type:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'N/A');
+  process.exit(1);
+}
+
+console.log('✓ Verified: fetch is available and ready to use');
 
 const app = express();
 
@@ -1490,7 +1533,7 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     let response;
     try {
-      response = await fetch(url, {
+      response = await (globalThis.fetch || fetch)(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1642,7 +1685,7 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     
     let response;
     try {
-      response = await fetch(url, {
+      response = await (globalThis.fetch || fetch)(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1740,7 +1783,7 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for tetration-projection from Finnhub...');
-      const response = await fetch(url, {
+      const response = await (globalThis.fetch || fetch)(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
@@ -1956,7 +1999,7 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
       console.log('Fetching quote for snapshot from Finnhub...');
-      const response = await fetch(url, {
+      const response = await (globalThis.fetch || fetch)(url, {
         method: 'GET',
         headers: {
           'User-Agent': 'Node.js/Express Server',
