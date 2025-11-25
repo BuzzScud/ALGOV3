@@ -1767,24 +1767,35 @@ function startServer(port) {
   // Log all registered routes before starting server
   console.log('\n=== REGISTERED ROUTES ===');
   const routes = [];
-  app._router.stack.forEach((middleware) => {
-    if (middleware.route) {
-      routes.push(`${Object.keys(middleware.route.methods)[0].toUpperCase()} ${middleware.route.path}`);
-    } else if (middleware.name === 'router') {
-      middleware.handle.stack.forEach((handler) => {
+  
+  // More comprehensive route logging
+  function logRoutes(layer, prefix = '') {
+    if (layer.route) {
+      const methods = Object.keys(layer.route.methods).map(m => m.toUpperCase()).join(',');
+      routes.push(`${methods} ${prefix}${layer.route.path}`);
+    } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
+      layer.handle.stack.forEach((handler) => {
         if (handler.route) {
-          routes.push(`${Object.keys(handler.route.methods)[0].toUpperCase()} ${handler.route.path}`);
+          const methods = Object.keys(handler.route.methods).map(m => m.toUpperCase()).join(',');
+          routes.push(`${methods} ${prefix}${handler.route.path}`);
         }
       });
     }
+  }
+  
+  app._router.stack.forEach((middleware) => {
+    logRoutes(middleware);
   });
+  
   routes.forEach(route => console.log(`  ${route}`));
+  console.log(`\nTotal routes registered: ${routes.length}`);
   console.log('========================\n');
   
   const server = app.listen(port, () => {
     console.log(`\n🚀 Server running on http://localhost:${port}`);
     console.log(`📄 Open http://localhost:${port}/index.html in your browser`);
     console.log(`🔌 API routes available at /api/* and /trading/api/*`);
+    console.log(`\n✅ Finnhub API configured`);
     console.log(`\nWaiting for requests...\n`);
   });
   
