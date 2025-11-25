@@ -5,7 +5,14 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const app = express();
-app.use(cors());
+
+// CORS configuration - allow requests from any origin (since we're serving the frontend)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Request logging middleware for debugging - log ALL requests
@@ -1356,10 +1363,34 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     // Fetch quote from Finnhub
     const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
     console.log('Fetching quote from Finnhub:', url.replace(FINNHUB_API_KEY, 'TOKEN_HIDDEN'));
+    console.log('Server making outbound request to Finnhub API...');
     
-    const response = await fetch(url);
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Node.js/Express Server',
+          'Accept': 'application/json'
+        },
+        // Add timeout
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+    } catch (fetchError) {
+      console.error('Network error fetching from Finnhub:', fetchError);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request to Finnhub API timed out. Check if your server can make outbound HTTPS requests.');
+      }
+      if (fetchError.code === 'ENOTFOUND' || fetchError.code === 'ECONNREFUSED') {
+        throw new Error('Cannot reach Finnhub API. Your server may be blocked from making outbound requests. Check firewall/security settings.');
+      }
+      throw new Error(`Network error: ${fetchError.message}. Your hosting provider may be blocking outbound requests.`);
+    }
+    
     if (!response.ok) {
-      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => response.statusText);
+      console.error('Finnhub API error response:', response.status, errorText);
+      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
     }
     
     const data = await response.json();
@@ -1517,16 +1548,29 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     let lastPrice;
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
-      const response = await fetch(url);
+      console.log('Fetching quote for tetration-projection from Finnhub...');
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Node.js/Express Server',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
       if (!response.ok) {
-        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
       }
       const data = await response.json();
       lastPrice = Number(data.c || data.pc || 0); // current price or previous close
       if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
     } catch (quoteErr) {
       console.error('Quote error in tetration-projection:', quoteErr);
-      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      // Provide more specific error messages
+      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
+        return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: quoteErr.message });
+      }
+      return res.status(400).json({ error: 'Invalid stock symbol or API error. Please check the symbol and try again.', details: quoteErr.message });
     }
 
     // Generate tetration towers with variable height (tower height = dimensions)
@@ -1670,16 +1714,29 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     let lastPrice;
     try {
       const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${FINNHUB_API_KEY}`;
-      const response = await fetch(url);
+      console.log('Fetching quote for snapshot from Finnhub...');
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Node.js/Express Server',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
       if (!response.ok) {
-        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
       }
       const data = await response.json();
       lastPrice = Number(data.c || data.pc || 0); // current price or previous close
       if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
     } catch (quoteErr) {
       console.error('Quote error in snapshot:', quoteErr);
-      return res.status(400).json({ error: 'Invalid stock symbol. Please check the symbol and try again.' });
+      // Provide more specific error messages
+      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
+        return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: quoteErr.message });
+      }
+      return res.status(400).json({ error: 'Invalid stock symbol or API error. Please check the symbol and try again.', details: quoteErr.message });
     }
 
     // Triads setup
