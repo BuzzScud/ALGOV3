@@ -1390,7 +1390,26 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText);
       console.error('Finnhub API error response:', response.status, errorText);
-      throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+      
+      // Check for rate limiting (429)
+      if (response.status === 429) {
+        throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+      }
+      
+      // Try to parse error response
+      let errorMessage = `Finnhub API error: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error) {
+          errorMessage = `Finnhub API error: ${errorData.error}`;
+        }
+      } catch {
+        // If parsing fails, use the raw error text
+        if (errorText) {
+          errorMessage = `Finnhub API error: ${errorText}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();
@@ -1398,11 +1417,19 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     // Check for Finnhub error in response (even with 200 status)
     if (data.error) {
       console.error('Finnhub API returned error:', data.error);
+      // Check for rate limiting in error message
+      if (data.error.includes('429') || data.error.toLowerCase().includes('rate limit')) {
+        throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+      }
       throw new Error(`Finnhub API error: ${data.error}`);
     }
     
     // Check if we got valid data
-    if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+    // Finnhub may return {c: 0, pc: 0} for invalid symbols or symbols with no data
+    const hasCurrentPrice = data.c !== undefined && data.c !== null && data.c !== 0;
+    const hasPreviousClose = data.pc !== undefined && data.pc !== null && data.pc !== 0;
+    
+    if (!data || (!hasCurrentPrice && !hasPreviousClose)) {
       throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
     }
     
@@ -1422,7 +1449,7 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
       percentChange: data.dp || 0
     };
     
-    // Validate we got actual data
+    // Final validation: ensure we have at least one non-zero price
     if (quote.regularMarketPrice === 0 && quote.regularMarketPreviousClose === 0) {
       throw new Error(`No market price available for ${symbol.toUpperCase()}. The symbol may not be actively traded or may not exist.`);
     }
@@ -1439,6 +1466,9 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     }
     if (err.message.includes('No price data') || err.message.includes('not exist') || err.message.includes('not be tradeable')) {
       return res.status(400).json({ error: err.message });
+    }
+    if (err.message.includes('rate limit') || err.message.includes('429')) {
+      return res.status(429).json({ error: err.message });
     }
     if (err.message.includes('Finnhub API error')) {
       return res.status(400).json({ error: err.message });
@@ -1578,18 +1608,44 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
       });
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
-        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
+        
+        // Check for rate limiting (429)
+        if (response.status === 429) {
+          throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+        }
+        
+        // Try to parse error response
+        let errorMessage = `Finnhub API error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error) {
+            errorMessage = `Finnhub API error: ${errorData.error}`;
+          }
+        } catch {
+          if (errorText) {
+            errorMessage = `Finnhub API error: ${errorText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       
       // Check for Finnhub API error in response (even with 200 status)
       if (data.error) {
         console.error('Finnhub API returned error:', data.error);
+        // Check for rate limiting in error message
+        if (data.error.includes('429') || data.error.toLowerCase().includes('rate limit')) {
+          throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+        }
         throw new Error(`Finnhub API error: ${data.error}`);
       }
       
       // Check if we got valid data
-      if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+      // Finnhub may return {c: 0, pc: 0} for invalid symbols or symbols with no data
+      const hasCurrentPrice = data.c !== undefined && data.c !== null && data.c !== 0;
+      const hasPreviousClose = data.pc !== undefined && data.pc !== null && data.pc !== 0;
+      
+      if (!data || (!hasCurrentPrice && !hasPreviousClose)) {
         throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
       }
       
@@ -1767,18 +1823,44 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
       });
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
-        throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
+        
+        // Check for rate limiting (429)
+        if (response.status === 429) {
+          throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+        }
+        
+        // Try to parse error response
+        let errorMessage = `Finnhub API error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error) {
+            errorMessage = `Finnhub API error: ${errorData.error}`;
+          }
+        } catch {
+          if (errorText) {
+            errorMessage = `Finnhub API error: ${errorText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       
       // Check for Finnhub API error in response (even with 200 status)
       if (data.error) {
         console.error('Finnhub API returned error:', data.error);
+        // Check for rate limiting in error message
+        if (data.error.includes('429') || data.error.toLowerCase().includes('rate limit')) {
+          throw new Error('Finnhub API rate limit exceeded. Please try again later.');
+        }
         throw new Error(`Finnhub API error: ${data.error}`);
       }
       
       // Check if we got valid data
-      if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+      // Finnhub may return {c: 0, pc: 0} for invalid symbols or symbols with no data
+      const hasCurrentPrice = data.c !== undefined && data.c !== null && data.c !== 0;
+      const hasPreviousClose = data.pc !== undefined && data.pc !== null && data.pc !== 0;
+      
+      if (!data || (!hasCurrentPrice && !hasPreviousClose)) {
         throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
       }
       
