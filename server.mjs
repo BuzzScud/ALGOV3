@@ -1652,7 +1652,30 @@ registerApiRoute('get', '/api/history', async (req, res) => {
     });
   } catch (err) {
     console.error('History error:', err);
-    res.status(500).json({ error: 'history failed', details: err.message });
+    // CRITICAL: Sanitize error messages - never expose "fetch is not defined" or internal errors
+    const errorMsg = String(err?.message || 'Unknown error');
+    const hasInternalError = errorMsg.includes('fetch is not defined') || 
+                            errorMsg.includes('ReferenceError') ||
+                            errorMsg.includes('getFetch');
+    
+    if (hasInternalError) {
+      // This indicates a server configuration issue
+      console.error('CRITICAL: Internal server error in history endpoint:', errorMsg);
+      return res.status(500).json({ 
+        error: 'Internal server error',
+        hint: 'The server is experiencing technical difficulties. Please try again later.'
+      });
+    }
+    
+    // For other errors, provide sanitized message
+    const sanitizedMsg = errorMsg
+      .replace(/is not defined|ReferenceError|undefined/g, 'invalid input')
+      .substring(0, 200);
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch historical data',
+      hint: sanitizedMsg || 'Please try again later or contact support if the issue persists.'
+    });
   }
 });
 
@@ -2013,6 +2036,24 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
         });
       }
       // Generic fallback - sanitized message
+      // CRITICAL: Never expose "fetch is not defined" or other internal errors
+      // Check if error message contains internal implementation details
+      const hasInternalError = quoteErr.message && (
+        quoteErr.message.includes('fetch is not defined') ||
+        quoteErr.message.includes('ReferenceError') ||
+        quoteErr.message.includes('is not defined') ||
+        quoteErr.message.includes('getFetch')
+      );
+      
+      if (hasInternalError) {
+        // This indicates a server configuration issue, not a user error
+        console.error('CRITICAL: Internal server error detected:', quoteErr.message);
+        return res.status(500).json({ 
+          error: 'Internal server error',
+          hint: 'The server is experiencing technical difficulties. Please try again later or contact support.'
+        });
+      }
+      
       return res.status(400).json({ 
         error: `Unable to fetch stock data for ${symbol}`,
         hint: 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
