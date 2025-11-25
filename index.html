@@ -1564,14 +1564,19 @@
 
     // Attach event listeners only after ctx is initialized
     function attachPanListeners() {
-      if (!ctx) {
+      // Get ctx fresh each time to ensure it's available
+      const canvasElement = document.getElementById('chart');
+      if (!canvasElement) {
         console.warn('Canvas element not available for pan listeners');
         return;
       }
+      
+      // Use the canvas element directly
+      const canvasCtx = canvasElement;
 
-    ctx.addEventListener('mousedown', (e) => {
+    canvasCtx.addEventListener('mousedown', (e) => {
       if (!chart.data.labels || chart.data.labels.length === 0) return;
-      const rect = ctx.getBoundingClientRect();
+      const rect = canvasCtx.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
@@ -1586,14 +1591,14 @@
           panStartYMin = yScale.min;
           panStartYMax = yScale.max;
         }
-        ctx.style.cursor = 'grabbing';
+        canvasCtx.style.cursor = 'grabbing';
         e.preventDefault();
       }
     });
 
     ctx.addEventListener('mousemove', (e) => {
       if (!isPanning || !chart.data.labels || chart.data.labels.length === 0) return;
-      const rect = ctx.getBoundingClientRect();
+      const rect = canvasCtx.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const xScale = chart.scales.x;
@@ -1617,14 +1622,14 @@
     ctx.addEventListener('mouseup', () => {
       if (isPanning) {
         isPanning = false;
-        ctx.style.cursor = 'grab';
+        canvasCtx.style.cursor = 'grab';
       }
     });
 
     ctx.addEventListener('mouseleave', () => {
       if (isPanning) {
         isPanning = false;
-        ctx.style.cursor = 'grab';
+        canvasCtx.style.cursor = 'grab';
       }
     });
     }

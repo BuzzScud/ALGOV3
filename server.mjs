@@ -12,17 +12,25 @@ import { URL } from 'url';
 // For older versions or if fetch is not available, create a polyfill
 
 // Check if native fetch exists
+// Node.js 18+ has fetch, but it might not be in globalThis by default
 let nativeFetch = null;
 try {
+  // Try to access fetch from various locations
   if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
     nativeFetch = globalThis.fetch;
   } else if (typeof fetch === 'function') {
     nativeFetch = fetch;
   } else if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
     nativeFetch = global.fetch;
+  } else {
+    // Node.js 18+ should have fetch, try to access it via import
+    // But we can't use dynamic import here, so we'll create a polyfill
+    // Actually, in Node.js 18+, fetch should be available globally
+    // If it's not, we need to use the polyfill
   }
 } catch (e) {
-  // Ignore errors during check
+  // Ignore errors during check - we'll use polyfill
+  console.warn('Error checking for native fetch:', e.message);
 }
 
 // Always create/assign fetch to ensure it's available
@@ -160,15 +168,31 @@ if (!nativeFetch) {
   console.log('✓ Using native fetch (Node.js 18+)');
 }
 
-// CRITICAL: Verify fetch is available in globalThis
-if (typeof globalThis === 'undefined' || typeof globalThis.fetch !== 'function') {
-  console.error('CRITICAL ERROR: fetch is not available in globalThis after initialization!');
-  console.error('globalThis type:', typeof globalThis);
-  console.error('globalThis.fetch type:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'N/A');
+// CRITICAL: Ensure fetch is ALWAYS available in globalThis
+// Even if native fetch exists, make sure it's in globalThis
+if (typeof globalThis !== 'undefined') {
+  if (typeof globalThis.fetch !== 'function') {
+    // If we have nativeFetch, use it; otherwise use polyfill
+    if (nativeFetch && typeof nativeFetch === 'function') {
+      globalThis.fetch = nativeFetch;
+      console.log('✓ Assigned native fetch to globalThis.fetch');
+    } else {
+      // This should not happen if polyfill was created
+      console.error('CRITICAL ERROR: No fetch available (neither native nor polyfill)!');
+      process.exit(1);
+    }
+  } else {
+    console.log('✓ Verified: fetch is available in globalThis');
+  }
+} else {
+  console.error('CRITICAL ERROR: globalThis is not available!');
   process.exit(1);
 }
 
-console.log('✓ Verified: fetch is available and ready to use');
+// Also ensure it's available as a module-level constant for direct use
+// In ES modules, we can't use 'var', but we can create a reference
+const fetchFn = globalThis.fetch;
+console.log('✓ Fetch function ready:', typeof fetchFn === 'function' ? 'YES' : 'NO');
 
 const app = express();
 
