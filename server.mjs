@@ -36,57 +36,18 @@ import { URL } from 'url';
 const moduleFetch = globalThis.fetch;
 
 // CRITICAL: Create a module-level fetch function that always works
-// This ensures fetch is available even if globalThis.fetch has scope issues
+// Since we're using undici, fetch is guaranteed to be available
+// This function provides a simple, reliable way to access fetch
 function getFetch() {
-  // First, try the module-level variable (most reliable)
-  if (moduleFetch && typeof moduleFetch === 'function') {
-    return moduleFetch;
+  // Fetch is guaranteed to be available via undici polyfill
+  // Return it directly from globalThis
+  if (typeof globalThis.fetch === 'function') {
+    return globalThis.fetch;
   }
   
-  // Fallback to globalThis.fetch
-  try {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
-      // Update moduleFetch for next time
-      moduleFetch = globalThis.fetch;
-      console.log('[getFetch] Retrieved fetch from globalThis.fetch');
-      return globalThis.fetch;
-    }
-  } catch (e) {
-    console.warn('[getFetch] Error accessing globalThis.fetch:', e.message);
-  }
-  
-  // Fallback to global.fetch
-  try {
-    if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
-      // Update moduleFetch for next time
-      moduleFetch = global.fetch;
-      console.log('[getFetch] Retrieved fetch from global.fetch');
-      return global.fetch;
-    }
-  } catch (e) {
-    console.warn('[getFetch] Error accessing global.fetch:', e.message);
-  }
-  
-  // Last resort: try to access fetch from module scope (safely)
-  // CRITICAL: We must use a safe method here because accessing 'fetch' directly
-  // will throw ReferenceError if it's not defined in this scope
-  // In ES modules, we can't use eval, so we skip this check
-  // If we got here, fetch is not available in globalThis or global, which means
-  // the initialization failed - this should never happen
-  
-  // This should never happen if initialization worked, but provide fallback
-  console.error('[getFetch] CRITICAL: fetch not available in getFetch()');
-  console.error('[getFetch] moduleFetch type:', typeof moduleFetch);
-  console.error('[getFetch] globalThis.fetch type:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'globalThis undefined');
-  console.error('[getFetch] global.fetch type:', typeof global !== 'undefined' ? typeof global.fetch : 'global undefined');
-  
-  // Create a minimal error-throwing fetch as absolute last resort
-  // This will at least give a clear error message
-  const errorFetch = function() {
-    console.error('[getFetch] ERROR: Attempted to use fetch but it is not available!');
-    throw new Error('fetch is not available - backend initialization failed. Check server logs for fetch initialization errors.');
-  };
-  return errorFetch;
+  // This should never happen if undici import worked
+  console.error('[getFetch] CRITICAL: fetch is not available in globalThis after undici import!');
+  throw new Error('fetch is not available - undici polyfill failed to initialize');
 }
 
 // Verify fetch is available
