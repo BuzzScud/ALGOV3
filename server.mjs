@@ -1879,23 +1879,41 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
 
 // Snapshot endpoint
 registerApiRoute('post', '/api/snapshot', async (req, res) => {
-  const {
-    symbol,
-    base = 3, // seed base, default 3
-    triads, // array of triads [[p1,p2,p3], ...]
-    depthPrime = 31, // default depth prime
-    horizon = 240, // future steps
-    count = 12, // number of projection lines (1-12)
-    beta = 0.01 // calibration factor
-  } = req.body || {};
   try {
-    if (!symbol) return res.status(400).json({ error: 'symbol required' });
+    // CRITICAL: Validate and sanitize symbol input to prevent "variable is not defined" errors
+    // Extract symbol safely - handle undefined, null, or invalid types
+    const symbolRaw = req.body?.symbol;
     
-    // Validate symbol format
-    const symbolPattern = /^[A-Z0-9.-]{1,10}$/i;
-    if (!symbolPattern.test(symbol)) {
-      return res.status(400).json({ error: 'Invalid symbol format. Use 1-10 alphanumeric characters.' });
+    // Validate symbol is a string and not empty
+    if (!symbolRaw || typeof symbolRaw !== 'string') {
+      return res.status(400).json({ 
+        error: 'Invalid stock symbol',
+        hint: 'Please provide a valid stock ticker symbol (e.g., AAPL, MSFT, TSLA)'
+      });
     }
+    
+    // Normalize symbol: trim whitespace and convert to uppercase
+    const symbol = String(symbolRaw).trim().toUpperCase();
+    
+    // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+    // Matches standard ticker format: AAPL, BRK.B, SPY, etc.
+    const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+    if (!symbolPattern.test(symbol) || symbol.length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid stock symbol format',
+        hint: 'Use a valid ticker symbol (1-10 alphanumeric characters, may include dots or dashes). Examples: AAPL, MSFT, BRK.B'
+      });
+    }
+    
+    // Extract other parameters with defaults
+    const {
+      base = 3, // seed base, default 3
+      triads, // array of triads [[p1,p2,p3], ...]
+      depthPrime = 31, // default depth prime
+      horizon = 240, // future steps
+      count = 12, // number of projection lines (1-12)
+      beta = 0.01 // calibration factor
+    } = req.body || {};
     
     if (!Number.isInteger(+count) || +count < 1 || +count > 12) return res.status(400).json({ error: 'count must be between 1 and 12' });
 
@@ -1965,20 +1983,40 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
       }
     } catch (quoteErr) {
       console.error('Quote error in snapshot:', quoteErr);
+      // CRITICAL: Sanitize error messages - never leak internal variable names or stack traces
+      // Provide user-friendly error messages without exposing implementation details
+      const errorMsg = String(quoteErr?.message || 'Unknown error').replace(/is not defined|ReferenceError|undefined/g, 'invalid input');
+      
       // Provide more specific error messages
       if (quoteErr.message.includes('timeout') || quoteErr.message.includes('AbortError')) {
-        return res.status(503).json({ error: 'Request to Finnhub API timed out. Please try again later.', details: quoteErr.message });
+        return res.status(503).json({ 
+          error: 'Request to Finnhub API timed out. Please try again later.',
+          hint: 'The stock data service is temporarily unavailable. Please try again in a moment.'
+        });
       }
       if (quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
-        return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: quoteErr.message });
+        return res.status(503).json({ 
+          error: 'Cannot reach stock data service. Server may be temporarily unavailable.',
+          hint: 'Please try again later or contact support if the issue persists.'
+        });
       }
       if (quoteErr.message.includes('No price data') || quoteErr.message.includes('not exist') || quoteErr.message.includes('not be tradeable')) {
-        return res.status(400).json({ error: quoteErr.message });
+        return res.status(400).json({ 
+          error: `Unable to find stock data for ${symbol}`,
+          hint: 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
+        });
       }
       if (quoteErr.message.includes('Finnhub API error')) {
-        return res.status(400).json({ error: quoteErr.message });
+        return res.status(400).json({ 
+          error: 'Stock data service returned an error',
+          hint: 'Please verify the stock symbol is correct and try again.'
+        });
       }
-      return res.status(400).json({ error: `Unable to fetch quote for ${symbol.toUpperCase()}. ${quoteErr.message}` });
+      // Generic fallback - sanitized message
+      return res.status(400).json({ 
+        error: `Unable to fetch stock data for ${symbol}`,
+        hint: 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
+      });
     }
 
     // Triads setup
