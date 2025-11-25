@@ -1395,9 +1395,15 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     const data = await response.json();
     
-    // Check for Finnhub error
-    if (!data || data.error) {
-      throw new Error(data.error || 'Invalid response from Finnhub');
+    // Check for Finnhub error in response (even with 200 status)
+    if (data.error) {
+      console.error('Finnhub API returned error:', data.error);
+      throw new Error(`Finnhub API error: ${data.error}`);
+    }
+    
+    // Check if we got valid data
+    if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+      throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
     }
     
     // Transform Finnhub response to match expected format
@@ -1418,12 +1424,25 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     
     // Validate we got actual data
     if (quote.regularMarketPrice === 0 && quote.regularMarketPreviousClose === 0) {
-      throw new Error('No price data available for this symbol');
+      throw new Error(`No market price available for ${symbol.toUpperCase()}. The symbol may not be actively traded or may not exist.`);
     }
     
     res.json(quote);
   } catch (err) {
     console.error('Quote error:', err);
+    // Provide more specific error messages
+    if (err.message.includes('timeout') || err.message.includes('AbortError')) {
+      return res.status(503).json({ error: 'Request to Finnhub API timed out. Please try again later.', details: err.message });
+    }
+    if (err.message.includes('ENOTFOUND') || err.message.includes('ECONNREFUSED')) {
+      return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: err.message });
+    }
+    if (err.message.includes('No price data') || err.message.includes('not exist') || err.message.includes('not be tradeable')) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.message.includes('Finnhub API error')) {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: 'quote failed', details: err.message });
   }
 });
@@ -1562,15 +1581,38 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
         throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
       }
       const data = await response.json();
+      
+      // Check for Finnhub API error in response (even with 200 status)
+      if (data.error) {
+        console.error('Finnhub API returned error:', data.error);
+        throw new Error(`Finnhub API error: ${data.error}`);
+      }
+      
+      // Check if we got valid data
+      if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+        throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
+      }
+      
       lastPrice = Number(data.c || data.pc || 0); // current price or previous close
-      if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
+      if (lastPrice === 0) {
+        return res.status(400).json({ error: `No market price available for ${symbol.toUpperCase()}. The symbol may not be actively traded or may not exist.` });
+      }
     } catch (quoteErr) {
       console.error('Quote error in tetration-projection:', quoteErr);
       // Provide more specific error messages
-      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
+      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('AbortError')) {
+        return res.status(503).json({ error: 'Request to Finnhub API timed out. Please try again later.', details: quoteErr.message });
+      }
+      if (quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
         return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: quoteErr.message });
       }
-      return res.status(400).json({ error: 'Invalid stock symbol or API error. Please check the symbol and try again.', details: quoteErr.message });
+      if (quoteErr.message.includes('No price data') || quoteErr.message.includes('not exist') || quoteErr.message.includes('not be tradeable')) {
+        return res.status(400).json({ error: quoteErr.message });
+      }
+      if (quoteErr.message.includes('Finnhub API error')) {
+        return res.status(400).json({ error: quoteErr.message });
+      }
+      return res.status(400).json({ error: `Unable to fetch quote for ${symbol.toUpperCase()}. ${quoteErr.message}` });
     }
 
     // Generate tetration towers with variable height (tower height = dimensions)
@@ -1728,15 +1770,38 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
         throw new Error(`Finnhub API error: ${response.status} ${response.statusText}. ${errorText}`);
       }
       const data = await response.json();
+      
+      // Check for Finnhub API error in response (even with 200 status)
+      if (data.error) {
+        console.error('Finnhub API returned error:', data.error);
+        throw new Error(`Finnhub API error: ${data.error}`);
+      }
+      
+      // Check if we got valid data
+      if (!data || (typeof data.c === 'undefined' && typeof data.pc === 'undefined')) {
+        throw new Error(`No price data available for symbol ${symbol.toUpperCase()}. The symbol may not exist or may not be tradeable.`);
+      }
+      
       lastPrice = Number(data.c || data.pc || 0); // current price or previous close
-      if (lastPrice === 0) return res.status(500).json({ error: 'no market price available' });
+      if (lastPrice === 0) {
+        return res.status(400).json({ error: `No market price available for ${symbol.toUpperCase()}. The symbol may not be actively traded or may not exist.` });
+      }
     } catch (quoteErr) {
       console.error('Quote error in snapshot:', quoteErr);
       // Provide more specific error messages
-      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
+      if (quoteErr.message.includes('timeout') || quoteErr.message.includes('AbortError')) {
+        return res.status(503).json({ error: 'Request to Finnhub API timed out. Please try again later.', details: quoteErr.message });
+      }
+      if (quoteErr.message.includes('ENOTFOUND') || quoteErr.message.includes('ECONNREFUSED')) {
         return res.status(503).json({ error: 'Cannot reach Finnhub API. Server may be blocked from making outbound requests.', details: quoteErr.message });
       }
-      return res.status(400).json({ error: 'Invalid stock symbol or API error. Please check the symbol and try again.', details: quoteErr.message });
+      if (quoteErr.message.includes('No price data') || quoteErr.message.includes('not exist') || quoteErr.message.includes('not be tradeable')) {
+        return res.status(400).json({ error: quoteErr.message });
+      }
+      if (quoteErr.message.includes('Finnhub API error')) {
+        return res.status(400).json({ error: quoteErr.message });
+      }
+      return res.status(400).json({ error: `Unable to fetch quote for ${symbol.toUpperCase()}. ${quoteErr.message}` });
     }
 
     // Triads setup
