@@ -505,29 +505,134 @@
       }
     }
     
-    // Fetch with retry and exponential backoff (from PDF analysis principles)
-    async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+    // Safe URL join utility (from PDF analysis principles)
+    // Normalizes base and path, validates URL, prevents null/undefined issues
+    function safeJoinUrl(base, path) {
+      if (!base && !path) {
+        throw new Error('API URL construction failed: both base and path are empty');
+      }
+      
+      // Normalize slashes - remove trailing slashes from base, leading slashes from path
+      const normalizedBase = (base || '').replace(/\/+$/, '');
+      const normalizedPath = (path || '').replace(/^\/+/, '');
+      
+      // Construct full URL
+      let fullUrl;
+      if (normalizedBase && normalizedPath) {
+        fullUrl = `${normalizedBase}/${normalizedPath}`;
+      } else if (normalizedBase) {
+        fullUrl = normalizedBase;
+      } else {
+        fullUrl = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+      }
+      
+      // Validate URL (for absolute URLs)
+      if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
+        try {
+          const url = new URL(fullUrl);
+          return url.toString();
+        } catch (e) {
+          console.error('Invalid URL construction', { base, path, fullUrl, error: String(e) });
+          throw new Error(`Invalid URL: ${fullUrl}`);
+        }
+      }
+      
+      // For relative URLs, just return normalized path
+      return fullUrl;
+    }
+    
+    // Centralized API routes (from PDF analysis principles)
+    const apiRoutes = {
+      quote: (symbol, period = '1d') => `/api/quote/${symbol}?period=${period}`,
+      history: (symbol, range = '1mo', interval = '1d') => `/api/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
+      snapshot: () => `/api/snapshot`,
+      tetrationProjection: () => `/api/tetration-projection`,
+      health: () => `/api/health`
+    };
+    
+    // Enhanced API fetch with retry, error handling, and URL validation
+    async function apiFetch(path, options = {}, maxRetries = 3) {
+      // Validate path is not null/undefined
+      if (!path || path === 'null' || path === 'undefined') {
+        throw new Error(`Invalid API path: ${path}`);
+      }
+      
+      // Ensure path is a string
+      const url = typeof path === 'string' ? path : String(path);
+      
+      // Validate URL before attempting fetch
+      if (!url || url.trim() === '') {
+        throw new Error('API URL is empty or invalid');
+      }
+      
+      // Add default headers
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('Content-Type') && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+        headers.set('Content-Type', 'application/json');
+      }
+      
+      // Retry logic with exponential backoff
       let attempt = 0;
+      let lastError = null;
+      
       while (attempt < maxRetries) {
         try {
-          const response = await window.fetch(url, options);
-          if (response.ok || attempt === maxRetries - 1) {
+          const response = await window.fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+            mode: 'cors'
+          });
+          
+          // If response is OK, return it
+          if (response.ok) {
             return response;
           }
-          // If not OK and not last attempt, wait and retry
-          const delay = Math.pow(2, attempt) * 250; // Exponential backoff: 250ms, 500ms, 1000ms
-          await new Promise(resolve => setTimeout(resolve, delay));
-          attempt++;
+          
+          // Distinguish between network errors and HTTP errors
+          const is5xx = response.status >= 500 && response.status < 600;
+          const isNetwork = response.status === 0 || !response.status;
+          
+          // Retry on 5xx or network errors, but not on 4xx (client errors)
+          if ((is5xx || isNetwork) && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250; // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // For 4xx errors or last attempt, get error details and throw
+          const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+          console.warn('API error', { url, status: response.status, body: errorText.slice(0, 500) });
+          throw new Error(`API ${response.status} ${response.statusText} at ${url}: ${errorText.slice(0, 200)}`);
+          
         } catch (error) {
+          lastError = error;
+          const isNetworkError = error.message.includes('Failed to fetch') || 
+                                error.name === 'TypeError' || 
+                                error.message.includes('NetworkError');
+          
+          // Retry on network errors
+          if (isNetworkError && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // If not retryable or last attempt, throw
           if (attempt === maxRetries - 1) {
             throw error;
           }
-          const delay = Math.pow(2, attempt) * 250;
-          await new Promise(resolve => setTimeout(resolve, delay));
-          attempt++;
         }
       }
-      throw new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+      
+      throw lastError || new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+    }
+    
+    // Legacy fetchWithRetry for backward compatibility
+    async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+      return apiFetch(url, options, maxRetries);
     }
     
     // Prime depth options - expanded up to 281
@@ -1353,10 +1458,10 @@
           baseLabels = [];
         }
 
-        // Try multiple API paths as fallback
+        // Try multiple API paths as fallback using centralized routes
         const apiPaths = [
-          `/api/snapshot`,
-          `/trading/api/snapshot`
+          apiRoutes.snapshot(),
+          `/trading${apiRoutes.snapshot()}`
         ];
         
         let snapResp = null;
@@ -1369,7 +1474,7 @@
             console.log('Trying snapshot URL:', snapshotUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
             
-            snapResp = await fetchWithRetry(snapshotUrl, {
+            snapResp = await apiFetch(snapshotUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
