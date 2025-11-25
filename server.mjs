@@ -193,17 +193,42 @@ if (typeof globalThis !== 'undefined') {
 // This ensures fetch is available even if globalThis.fetch has scope issues
 function getFetch() {
   // Try multiple sources in order of preference
-  if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
-    return globalThis.fetch;
+  // Use try-catch to safely check for fetch without throwing ReferenceError
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+      return globalThis.fetch;
+    }
+  } catch (e) {
+    // Ignore errors checking globalThis
   }
-  if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
-    return global.fetch;
+  
+  try {
+    if (typeof global !== 'undefined' && typeof global.fetch === 'function') {
+      return global.fetch;
+    }
+  } catch (e) {
+    // Ignore errors checking global
   }
-  if (typeof fetch === 'function') {
-    return fetch;
+  
+  // Check for fetch in module scope (safely)
+  try {
+    if (typeof fetch === 'function') {
+      return fetch;
+    }
+  } catch (e) {
+    // fetch is not defined in this scope, continue to fallback
   }
+  
+  // Final fallback: use the fetchFn that was set during initialization
+  if (typeof fetchFn === 'function') {
+    return fetchFn;
+  }
+  
   // This should never happen if initialization worked, but provide fallback
   console.error('CRITICAL: fetch not available in getFetch()');
+  console.error('globalThis.fetch:', typeof globalThis !== 'undefined' ? typeof globalThis.fetch : 'globalThis undefined');
+  console.error('global.fetch:', typeof global !== 'undefined' ? typeof global.fetch : 'global undefined');
+  console.error('fetchFn:', typeof fetchFn);
   throw new Error('fetch is not available');
 }
 
