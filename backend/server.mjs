@@ -2100,13 +2100,9 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
 
 // Serve static files AFTER API routes are registered
 // This ensures API routes are matched before static file middleware
-const rootDir = dirname(__dirname); // Go up from backend/ to project root
-const frontendDir = join(rootDir, 'frontend');
-const nodeModulesPath = join(rootDir, 'node_modules');
-
-console.log(`[STATIC FILES] Serving frontend from: ${frontendDir}`);
+const nodeModulesPath = join(__dirname, 'node_modules');
 console.log(`[STATIC FILES] Serving node_modules from: ${nodeModulesPath}`);
-console.log(`[STATIC FILES] Root directory: ${rootDir}`);
+console.log(`[STATIC FILES] __dirname: ${__dirname}`);
 
 // Serve node_modules with explicit paths
 app.use('/node_modules', express.static(nodeModulesPath, {
@@ -2124,9 +2120,9 @@ app.use('/trading/node_modules', express.static(nodeModulesPath, {
   }
 }));
 
-// Serve frontend static files
-app.use(express.static(frontendDir));
-app.use('/trading', express.static(frontendDir));
+// Serve other static files
+app.use(express.static(__dirname));
+app.use('/trading', express.static(__dirname));
 
 // Add logging middleware for static file requests
 app.use((req, res, next) => {

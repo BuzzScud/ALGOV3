@@ -30,5 +30,5 @@ lsof -ti:8080,8081 | xargs kill -9 2>/dev/null || true
 echo "Starting server on http://localhost:8080..."
 echo "Open http://localhost:8080/index.html in your browser"
 echo ""
-node backend/server.mjs
+node server.mjs
 
