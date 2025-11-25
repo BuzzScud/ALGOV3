@@ -985,7 +985,7 @@
           for (const historyUrl of historyPaths) {
             try {
               console.log('Trying history URL:', historyUrl);
-              histResp = await (window.fetch || fetch)(historyUrl);
+              histResp = await window.fetch(historyUrl);
               if (histResp.ok) {
                 console.log('Successfully fetched history from:', historyUrl);
                 break;
@@ -1056,7 +1056,7 @@
             console.log('Trying tetration URL:', tetrationUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
             
-            tetrationResp = await (window.fetch || fetch)(tetrationUrl, {
+            tetrationResp = await window.fetch(tetrationUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
@@ -1270,7 +1270,7 @@
           for (const historyUrl of historyPaths) {
             try {
               console.log('Trying history URL:', historyUrl);
-              histResp = await (window.fetch || fetch)(historyUrl);
+              histResp = await window.fetch(historyUrl);
               if (histResp.ok) {
                 console.log('Successfully fetched history from:', historyUrl);
                 break;
@@ -1341,7 +1341,7 @@
             console.log('Trying snapshot URL:', snapshotUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
             
-            snapResp = await (window.fetch || fetch)(snapshotUrl, {
+            snapResp = await window.fetch(snapshotUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
