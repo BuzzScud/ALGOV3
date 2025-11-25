@@ -1350,8 +1350,8 @@ console.log('✓ Registered test endpoints: GET /api/test and GET /trading/api/t
 // Note: registerApiRoute function is defined earlier in the file
 // IMPORTANT: These routes are registered BEFORE static middleware (which is at the end of the file)
 registerApiRoute('get', '/api/quote', async (req, res) => {
+  const { symbol } = req.query;
   try {
-    const { symbol } = req.query;
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
     
     // Validate symbol format (alphanumeric, 1-10 characters)
@@ -1473,7 +1473,9 @@ registerApiRoute('get', '/api/quote', async (req, res) => {
     if (err.message.includes('Finnhub API error')) {
       return res.status(400).json({ error: err.message });
     }
-    res.status(500).json({ error: 'quote failed', details: err.message });
+    // Generic fallback error - provide helpful message
+    const errorMsg = err.message || 'Unknown error occurred while fetching stock quote';
+    res.status(500).json({ error: `Unable to fetch quote for ${symbol?.toUpperCase() || 'symbol'}. ${errorMsg}`, details: err.message });
   }
 });
 
@@ -1572,16 +1574,16 @@ registerApiRoute('get', '/api/history', async (req, res) => {
 
 // Enhanced tetration projection endpoint with oscillation analysis
 registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
+  const {
+    symbol,
+    base = 3,
+    depthPrime = 31,
+    horizon = 240,
+    count = 12,
+    beta = 0.01,
+    towerHeight = null // Tower height/depth (null = auto-calculate based on available primes)
+  } = req.body || {};
   try {
-    const {
-      symbol,
-      base = 3,
-      depthPrime = 31,
-      horizon = 240,
-      count = 12,
-      beta = 0.01,
-      towerHeight = null // Tower height/depth (null = auto-calculate based on available primes)
-    } = req.body || {};
 
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
     
@@ -1781,23 +1783,24 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'tetration projection failed', details: err.message });
+    // Generic fallback error - provide helpful message
+    const errorMsg = err.message || 'Unknown error occurred during tetration projection';
+    res.status(500).json({ error: `Tetration projection failed for ${symbol?.toUpperCase() || 'symbol'}. ${errorMsg}`, details: err.message });
   }
 });
 
 // Snapshot endpoint
 registerApiRoute('post', '/api/snapshot', async (req, res) => {
+  const {
+    symbol,
+    base = 3, // seed base, default 3
+    triads, // array of triads [[p1,p2,p3], ...]
+    depthPrime = 31, // default depth prime
+    horizon = 240, // future steps
+    count = 12, // number of projection lines (1-12)
+    beta = 0.01 // calibration factor
+  } = req.body || {};
   try {
-    const {
-      symbol,
-      base = 3, // seed base, default 3
-      triads, // array of triads [[p1,p2,p3], ...]
-      depthPrime = 31, // default depth prime
-      horizon = 240, // future steps
-      count = 12, // number of projection lines (1-12)
-      beta = 0.01 // calibration factor
-    } = req.body || {};
-
     if (!symbol) return res.status(400).json({ error: 'symbol required' });
     
     // Validate symbol format
@@ -1955,7 +1958,9 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'snapshot failed' });
+    // Generic fallback error - provide helpful message
+    const errorMsg = err.message || 'Unknown error occurred during snapshot generation';
+    res.status(500).json({ error: `Snapshot generation failed for ${symbol?.toUpperCase() || 'symbol'}. ${errorMsg}`, details: err.message });
   }
 });
 
