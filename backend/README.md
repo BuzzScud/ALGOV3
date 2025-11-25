@@ -56,7 +56,7 @@ sudo mkdir -p /var/www/voynich-backend
 sudo chown -R $USER:$USER /var/www/voynich-backend
 
 # 2. Copy files
-cp server.mjs package.json package-lock.json ecosystem.config.js /var/www/voynich-backend/
+cp server.mjs package.json package-lock.json ecosystem.config.cjs /var/www/voynich-backend/
 
 # 3. Install dependencies
 cd /var/www/voynich-backend
