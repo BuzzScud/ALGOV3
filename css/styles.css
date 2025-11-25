@@ -359,6 +359,420 @@
   }
 }
 
+/* Mobile Media Queries for Phone Display */
+
+/* Extra Small Phones (< 480px) */
+@media (max-width: 480px) {
+  /* Typography */
+  body {
+    font-size: 14px;
+  }
+  
+  h1, h2, h3 {
+    font-size: 1.25rem;
+  }
+  
+  /* Chart Container */
+  .chart-container {
+    height: 250px;
+    padding: 0.5rem;
+  }
+  
+  /* Buttons - Make them larger and more touch-friendly */
+  button {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Input Fields */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+  
+  /* Grid Layouts - Stack on mobile */
+  .grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+  
+  /* Cards and Containers */
+  .stat-card,
+  .monitor-card,
+  .news-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Spacing adjustments */
+  .space-y-8 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  .space-y-5 > * + * {
+    margin-top: 1rem;
+  }
+  
+  /* Status messages */
+  #status {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+    min-height: auto;
+  }
+  
+  /* Toggle button grids - make smaller buttons */
+  #primeDepthToggle,
+  #projCountToggle,
+  #horizonToggle,
+  #baseToggle {
+    gap: 0.5rem;
+  }
+  
+  #primeDepthToggle button,
+  #projCountToggle button,
+  #horizonToggle button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    min-height: 36px;
+  }
+  
+  #baseToggle button {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+    min-height: 48px;
+  }
+  
+  /* Chart header buttons */
+  #zoomInBtn,
+  #zoomOutBtn,
+  #resetZoomBtn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    min-height: 36px;
+  }
+  
+  /* System Information section */
+  .grid-cols-1.md\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Floating Action Button */
+  .fab {
+    width: 48px;
+    height: 48px;
+    bottom: 1rem;
+    right: 1rem;
+  }
+  
+  /* Chart instructions overlay */
+  #chartInstructions {
+    padding: 1rem;
+  }
+  
+  #chartInstructions svg {
+    width: 48px;
+    height: 48px;
+  }
+  
+  #chartInstructions h3 {
+    font-size: 1rem;
+  }
+  
+  #chartInstructions p {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Small to Medium Phones (480px - 640px) */
+@media (min-width: 481px) and (max-width: 640px) {
+  /* Typography */
+  body {
+    font-size: 15px;
+  }
+  
+  /* Chart Container */
+  .chart-container {
+    height: 280px;
+    padding: 0.75rem;
+  }
+  
+  /* Buttons */
+  button {
+    min-height: 42px;
+    padding: 0.625rem 1rem;
+  }
+  
+  /* Input Fields */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  select,
+  textarea {
+    min-height: 42px;
+    font-size: 16px;
+    padding: 0.625rem;
+  }
+  
+  /* Grid Layouts */
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Cards */
+  .stat-card,
+  .monitor-card,
+  .news-card {
+    padding: 1.25rem;
+  }
+  
+  /* Toggle buttons */
+  #primeDepthToggle {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  #projCountToggle {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  #horizonToggle {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Large Phones / Small Tablets (640px - 768px) */
+@media (min-width: 641px) and (max-width: 768px) {
+  /* Chart Container */
+  .chart-container {
+    height: 320px;
+  }
+  
+  /* Grid adjustments */
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Toggle button grids */
+  #primeDepthToggle {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  
+  #projCountToggle {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  #horizonToggle {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Tablets (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Chart Container */
+  .chart-container {
+    height: 350px;
+  }
+  
+  /* Sidebar adjustments if visible */
+  .w-96 {
+    width: 20rem;
+  }
+  
+  /* Grid adjustments */
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Landscape Phone Orientation */
+@media (max-width: 896px) and (orientation: landscape) {
+  /* Reduce vertical spacing in landscape */
+  .space-y-8 > * + * {
+    margin-top: 1rem;
+  }
+  
+  .space-y-5 > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  /* Chart container - use more height in landscape */
+  .chart-container {
+    height: 300px;
+  }
+  
+  /* Reduce padding */
+  .p-6 {
+    padding: 1rem;
+  }
+  
+  /* Make buttons more compact */
+  button {
+    padding: 0.5rem 0.75rem;
+    min-height: 38px;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .stat-card:hover,
+  .monitor-card:hover,
+  .news-card:hover,
+  .btn-primary:hover {
+    transform: none;
+  }
+  
+  /* Increase touch target sizes */
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for touch */
+  .space-y-3 > * + * {
+    margin-top: 0.875rem;
+  }
+  
+  .gap-2 {
+    gap: 0.75rem;
+  }
+  
+  .gap-3 {
+    gap: 1rem;
+  }
+}
+
+/* High DPI / Retina Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Ensure crisp rendering on high DPI screens */
+  canvas,
+  svg {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Mobile-specific styles for Trading App (index.html) */
+
+/* Chart Header - Stack buttons on mobile */
+@media (max-width: 640px) {
+  /* Chart header section */
+  .px-6.py-4.border-b {
+    padding: 1rem;
+  }
+  
+  /* Stack header content vertically */
+  .flex.items-center.justify-between {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  /* Make zoom buttons wrap */
+  .flex.items-center.gap-2 {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  
+  /* Chart container padding reduction */
+  .flex-1.p-6 {
+    padding: 1rem;
+  }
+  
+  /* Chart inner container */
+  .w-full.h-full.bg-gray-800 {
+    padding: 1rem !important;
+  }
+  
+  /* System information section */
+  .px-6.py-4.border-t {
+    padding: 1rem;
+  }
+  
+  /* System info text - make smaller on mobile */
+  .text-xs.text-gray-300 {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+  
+  /* Long text wrapping */
+  span.text-xs {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Very small phones - further adjustments */
+@media (max-width: 375px) {
+  /* Reduce all padding further */
+  .p-6 {
+    padding: 0.75rem;
+  }
+  
+  .px-6 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .py-4 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  
+  /* Make buttons even more compact */
+  button {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.75rem;
+  }
+  
+  /* Reduce font sizes */
+  h2.text-lg {
+    font-size: 1rem;
+  }
+  
+  p.text-sm {
+    font-size: 0.75rem;
+  }
+  
+  /* Chart instructions */
+  #chartInstructions .p-8 {
+    padding: 1rem;
+  }
+  
+  #chartInstructions svg {
+    width: 40px;
+    height: 40px;
+  }
+  
+  /* Status messages */
+  #status {
+    font-size: 0.75rem;
+    padding: 0.625rem;
+  }
+  
+  /* Labels */
+  label.block {
+    font-size: 0.8125rem;
+  }
+  
+  /* System information - hide less important info on very small screens */
+  .text-xs.text-gray-300 {
+    font-size: 0.625rem;
+  }
+}
+
 /* Print Styles */
 @media print {
   #sidebar,
