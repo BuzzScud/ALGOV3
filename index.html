@@ -292,79 +292,114 @@
 
   <script>
     // Fetch polyfill for older browsers or environments where fetch is not available
+    // Use ES5 syntax for maximum compatibility
     (function() {
-      if (typeof fetch === 'undefined') {
-        // Simple fetch polyfill using XMLHttpRequest
-        window.fetch = function(url, options = {}) {
-          return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            const method = options.method || 'GET';
-            const headers = options.headers || {};
-            
-            xhr.open(method, url, true);
-            
-            // Set headers
-            Object.keys(headers).forEach(key => {
-              xhr.setRequestHeader(key, headers[key]);
-            });
-            
-            xhr.onload = function() {
-              const response = {
-                ok: xhr.status >= 200 && xhr.status < 300,
-                status: xhr.status,
-                statusText: xhr.statusText,
-                headers: {},
-                text: () => Promise.resolve(xhr.responseText),
-                json: () => {
-                  try {
-                    return Promise.resolve(JSON.parse(xhr.responseText));
-                  } catch (e) {
-                    return Promise.reject(new Error('Invalid JSON response'));
+      // Check if fetch is available - check both window.fetch and global fetch
+      var fetchAvailable = typeof window !== 'undefined' && typeof window.fetch !== 'undefined';
+      fetchAvailable = fetchAvailable || (typeof fetch !== 'undefined');
+      
+      if (!fetchAvailable) {
+        // Simple fetch polyfill using XMLHttpRequest (ES5 compatible)
+        var fetchPolyfill = function(url, options) {
+          // Handle default parameters for older browsers
+          options = options || {};
+          url = url || '';
+          
+          return new Promise(function(resolve, reject) {
+            try {
+              var xhr = new XMLHttpRequest();
+              var method = options.method || 'GET';
+              var headers = options.headers || {};
+              
+              xhr.open(method, url, true);
+              
+              // Set headers
+              if (headers && typeof headers === 'object') {
+                for (var key in headers) {
+                  if (headers.hasOwnProperty(key)) {
+                    xhr.setRequestHeader(key, headers[key]);
                   }
+                }
+              }
+              
+              xhr.onload = function() {
+                var response = {
+                  ok: xhr.status >= 200 && xhr.status < 300,
+                  status: xhr.status,
+                  statusText: xhr.statusText || '',
+                  headers: {},
+                  text: function() {
+                    return Promise.resolve(xhr.responseText || '');
+                  },
+                  json: function() {
+                    try {
+                      return Promise.resolve(JSON.parse(xhr.responseText || '{}'));
+                    } catch (e) {
+                      return Promise.reject(new Error('Invalid JSON response: ' + e.message));
+                    }
+                  }
+                };
+                
+                // Parse headers
+                var headerStr = xhr.getAllResponseHeaders();
+                if (headerStr) {
+                  var headerLines = headerStr.split('\r\n');
+                  for (var i = 0; i < headerLines.length; i++) {
+                    var line = headerLines[i];
+                    var parts = line.split(': ');
+                    if (parts.length === 2) {
+                      response.headers[parts[0].toLowerCase()] = parts[1];
+                    }
+                  }
+                }
+                
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve(response);
+                } else {
+                  reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
                 }
               };
               
-              // Parse headers
-              const headerStr = xhr.getAllResponseHeaders();
-              if (headerStr) {
-                headerStr.split('\r\n').forEach(line => {
-                  const parts = line.split(': ');
-                  if (parts.length === 2) {
-                    response.headers[parts[0].toLowerCase()] = parts[1];
-                  }
+              xhr.onerror = function() {
+                reject(new Error('Network error'));
+              };
+              
+              xhr.ontimeout = function() {
+                reject(new Error('Request timeout'));
+              };
+              
+              // Handle abort signal if provided
+              if (options.signal && options.signal.addEventListener) {
+                options.signal.addEventListener('abort', function() {
+                  xhr.abort();
+                  reject(new Error('Request aborted'));
                 });
               }
               
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve(response);
+              // Send request
+              if (options.body) {
+                xhr.send(options.body);
               } else {
-                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                xhr.send();
               }
-            };
-            
-            xhr.onerror = function() {
-              reject(new Error('Network error'));
-            };
-            
-            xhr.ontimeout = function() {
-              reject(new Error('Request timeout'));
-            };
-            
-            if (options.signal) {
-              options.signal.addEventListener('abort', () => {
-                xhr.abort();
-                reject(new Error('Request aborted'));
-              });
-            }
-            
-            // Send request
-            if (options.body) {
-              xhr.send(options.body);
-            } else {
-              xhr.send();
+            } catch (err) {
+              reject(new Error('Fetch error: ' + err.message));
             }
           });
         };
+        
+        // Assign to both window.fetch and global fetch
+        if (typeof window !== 'undefined') {
+          window.fetch = fetchPolyfill;
+        }
+        // Also try to set global fetch (for Node.js-like environments)
+        try {
+          if (typeof global !== 'undefined') {
+            global.fetch = fetchPolyfill;
+          }
+        } catch (e) {
+          // Ignore if global is not available
+        }
       }
     })();
     
