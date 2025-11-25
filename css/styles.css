@@ -773,10 +773,126 @@
   }
 }
 
+/* Android-Specific Optimizations */
+@media (max-width: 1024px) {
+  /* Prevent text selection on buttons for better touch experience */
+  button {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Improve scrolling performance on Android */
+  #mobileMenuPanel {
+    -webkit-overflow-scrolling: touch;
+    will-change: transform;
+  }
+  
+  /* Optimize animations for Android */
+  #mobileMenuOverlay,
+  #mobileMenuPanel {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* Better touch feedback */
+  button:active,
+  input:active,
+  select:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Prevent zoom on input focus (Android Chrome) */
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    transform: scale(1);
+  }
+  
+  /* Improve chart rendering on Android */
+  canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  
+  /* Better button spacing for thumb reach */
+  #mobileMenuPanel button {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Optimize grid layouts for Android screens */
+  #primeDepthToggleMobile,
+  #projCountToggleMobile,
+  #horizonToggleMobile {
+    gap: 0.5rem;
+  }
+  
+  #primeDepthToggleMobile button,
+  #projCountToggleMobile button,
+  #horizonToggleMobile button {
+    min-height: 44px;
+    font-size: 0.875rem;
+  }
+}
+
+/* Android Chrome specific fixes */
+@supports (-webkit-appearance: none) {
+  @media (max-width: 1024px) {
+    /* Fix for Android Chrome address bar */
+    body {
+      min-height: -webkit-fill-available;
+    }
+    
+    /* Fix for Android Chrome viewport units */
+    .h-screen {
+      height: 100vh;
+      height: -webkit-fill-available;
+    }
+  }
+}
+
+/* Material Design elevation for mobile menu */
+#mobileMenuPanel {
+  box-shadow: 
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12),
+    0 5px 5px -3px rgba(0, 0, 0, 0.2);
+}
+
+#mobileMenuBtn {
+  box-shadow: 
+    0 3px 5px -1px rgba(0, 0, 0, 0.2),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Smooth transitions for Android */
+@media (max-width: 1024px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Improve rendering performance */
+  #mobileMenuPanel,
+  #mobileMenuOverlay,
+  #mobileMenuBtn {
+    will-change: transform, opacity;
+  }
+}
+
 /* Print Styles */
 @media print {
   #sidebar,
-  #mobile-menu-btn {
+  #mobile-menu-btn,
+  #mobileMenuBtn,
+  #mobileMenuOverlay,
+  #mobileMenuPanel {
     display: none !important;
   }
   
