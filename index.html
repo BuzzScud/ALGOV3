@@ -505,6 +505,31 @@
       }
     }
     
+    // Fetch with retry and exponential backoff (from PDF analysis principles)
+    async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+      let attempt = 0;
+      while (attempt < maxRetries) {
+        try {
+          const response = await window.fetch(url, options);
+          if (response.ok || attempt === maxRetries - 1) {
+            return response;
+          }
+          // If not OK and not last attempt, wait and retry
+          const delay = Math.pow(2, attempt) * 250; // Exponential backoff: 250ms, 500ms, 1000ms
+          await new Promise(resolve => setTimeout(resolve, delay));
+          attempt++;
+        } catch (error) {
+          if (attempt === maxRetries - 1) {
+            throw error;
+          }
+          const delay = Math.pow(2, attempt) * 250;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          attempt++;
+        }
+      }
+      throw new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+    }
+    
     // Prime depth options - expanded up to 281
     const PRIME_STOPS = [
       11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 
@@ -1331,9 +1356,8 @@
 
         // Try multiple API paths as fallback
         const apiPaths = [
-          `${API_BASE}/api/snapshot`,
-          `${window.location.protocol}//${window.location.host}/api/snapshot`,
-          `${window.location.protocol}//${window.location.host}/trading/api/snapshot`
+          `/api/snapshot`,
+          `/trading/api/snapshot`
         ];
         
         let snapResp = null;
@@ -1346,11 +1370,11 @@
             console.log('Trying snapshot URL:', snapshotUrl);
             console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
             
-            snapResp = await window.fetch(snapshotUrl, {
+            snapResp = await fetchWithRetry(snapshotUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
-            });
+            }, 3);
             
             console.log('Snapshot response status:', snapResp.status, snapResp.statusText);
             
