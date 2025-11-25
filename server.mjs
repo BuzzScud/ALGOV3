@@ -2153,10 +2153,35 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
       lines
     });
   } catch (err) {
-    console.error(err);
-    // Generic fallback error - provide helpful message
-    const errorMsg = err.message || 'Unknown error occurred during snapshot generation';
-    res.status(500).json({ error: `Snapshot generation failed for ${symbol?.toUpperCase() || 'symbol'}. ${errorMsg}`, details: err.message });
+    console.error('Snapshot error:', err);
+    // CRITICAL: Sanitize error messages - never leak internal variable names, stack traces, or implementation details
+    const errorMsg = String(err?.message || 'Unknown error');
+    
+    // Check if this is an internal server error (fetch not defined, etc.)
+    const hasInternalError = errorMsg.includes('fetch is not defined') ||
+                             errorMsg.includes('ReferenceError') ||
+                             errorMsg.includes('getFetch') ||
+                             errorMsg.includes('is not defined');
+    
+    if (hasInternalError) {
+      // This indicates a server configuration issue - don't expose to user
+      console.error('CRITICAL: Internal server error in snapshot endpoint:', errorMsg);
+      return res.status(500).json({ 
+        error: 'Internal server error',
+        hint: 'The server is experiencing technical difficulties. Please try again later or contact support.'
+      });
+    }
+    
+    // For other errors, sanitize and provide user-friendly message
+    const sanitizedMsg = errorMsg
+      .replace(/is not defined|ReferenceError|undefined|f\d+/gi, 'invalid input')
+      .replace(/at .*server\.mjs.*/g, '')
+      .substring(0, 200);
+    
+    res.status(500).json({ 
+      error: 'Snapshot generation failed',
+      hint: sanitizedMsg || 'Please verify the stock symbol is correct and try again. If the problem persists, the service may be temporarily unavailable.'
+    });
   }
 });
 
