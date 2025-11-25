@@ -465,11 +465,14 @@
       // CRITICAL: Ensure window.fetch is ALWAYS defined and accessible
       // Make sure it's available in all possible global scopes
       try {
-        if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+        if (typeof window !== 'undefined') {
+          // Assign fetchFunction to window.fetch
+          window.fetch = fetchFunction;
+          
           // Set in globalThis for maximum compatibility
           if (typeof globalThis !== 'undefined') {
             try {
-              globalThis.fetch = window.fetch;
+              globalThis.fetch = fetchFunction;
             } catch(e) {
               // Ignore if can't set globalThis.fetch
             }
@@ -478,7 +481,7 @@
           // Also set in self (for web workers)
           if (typeof self !== 'undefined') {
             try {
-              self.fetch = window.fetch;
+              self.fetch = fetchFunction;
             } catch(e) {
               // Ignore if can't set self.fetch
             }
@@ -486,15 +489,23 @@
           
           // Verify window.fetch is still a function
           if (typeof window.fetch !== 'function') {
-            console.error('CRITICAL: window.fetch is not a function after assignment!');
+            if (typeof console !== 'undefined' && console.error) {
+              console.error('[FETCH INIT] CRITICAL: window.fetch is not a function after assignment!');
+            }
           } else {
-            console.log('✓ window.fetch is ready and available');
+            if (typeof console !== 'undefined' && console.log) {
+              console.log('[FETCH INIT] ✓ window.fetch is ready and available');
+            }
           }
         } else {
-          console.error('CRITICAL: window.fetch was not set correctly!');
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('[FETCH INIT] CRITICAL: window is not defined!');
+          }
         }
       } catch(e) {
-        console.error('CRITICAL ERROR setting up fetch:', e.message);
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('[FETCH INIT] CRITICAL ERROR setting up fetch:', e.message);
+        }
         // Create a minimal error-throwing fetch as last resort
         if (typeof window !== 'undefined') {
           window.fetch = function() {
