@@ -2153,10 +2153,37 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
 
 // Serve static files AFTER API routes are registered
 // This ensures API routes are matched before static file middleware
-app.use('/node_modules', express.static(join(__dirname, 'node_modules')));
-app.use('/trading/node_modules', express.static(join(__dirname, 'node_modules')));
+const nodeModulesPath = join(__dirname, 'node_modules');
+console.log(`[STATIC FILES] Serving node_modules from: ${nodeModulesPath}`);
+console.log(`[STATIC FILES] __dirname: ${__dirname}`);
+
+// Serve node_modules with explicit paths
+app.use('/node_modules', express.static(nodeModulesPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+  }
+}));
+app.use('/trading/node_modules', express.static(nodeModulesPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+  }
+}));
+
+// Serve other static files
 app.use(express.static(__dirname));
 app.use('/trading', express.static(__dirname));
+
+// Add logging middleware for static file requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/node_modules') || req.path.startsWith('/trading/node_modules')) {
+    console.log(`[STATIC REQUEST] ${req.method} ${req.path} - Serving from: ${nodeModulesPath}`);
+  }
+  next();
+});
 
 // 404 handler for unmatched routes (must be last)
 app.use((req, res) => {
