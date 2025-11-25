@@ -1779,9 +1779,34 @@ registerApiRoute('post', '/api/tetration-projection', async (req, res) => {
         return res.status(400).json({ error: quoteErr.message });
       }
       if (quoteErr.message.includes('Finnhub API error')) {
-        return res.status(400).json({ error: quoteErr.message });
+        return res.status(400).json({ 
+          error: 'Stock data service returned an error',
+          hint: 'Please verify the stock symbol is correct and try again.'
+        });
       }
-      return res.status(400).json({ error: `Unable to fetch quote for ${symbol.toUpperCase()}. ${quoteErr.message}` });
+      
+      // CRITICAL: Check for internal server errors (fetch not defined, etc.)
+      const errorMsg = String(quoteErr?.message || 'Unknown error');
+      const hasInternalError = errorMsg.includes('fetch is not defined') ||
+                               errorMsg.includes('ReferenceError') ||
+                               errorMsg.includes('getFetch');
+      
+      if (hasInternalError) {
+        console.error('CRITICAL: Internal server error in tetration-projection:', errorMsg);
+        return res.status(500).json({ 
+          error: 'Internal server error',
+          hint: 'The server is experiencing technical difficulties. Please try again later.'
+        });
+      }
+      
+      // Generic fallback - sanitized message
+      const sanitizedMsg = errorMsg
+        .replace(/is not defined|ReferenceError|undefined/g, 'invalid input')
+        .substring(0, 200);
+      return res.status(400).json({ 
+        error: `Unable to fetch stock data for ${symbol.toUpperCase()}`,
+        hint: sanitizedMsg || 'Please verify the stock symbol is correct and try again. Examples: AAPL, MSFT, TSLA'
+      });
     }
 
     // Generate tetration towers with variable height (tower height = dimensions)
