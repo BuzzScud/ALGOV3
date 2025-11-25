@@ -66,9 +66,12 @@ if [ -f "$BACKEND_SOURCE_DIR/package-lock.json" ]; then
     cp "$BACKEND_SOURCE_DIR/package-lock.json" "$BACKEND_TARGET_DIR/"
 fi
 
-if [ -f "$BACKEND_SOURCE_DIR/ecosystem.config.js" ]; then
-    echo "Copying ecosystem.config.js..."
-    cp "$BACKEND_SOURCE_DIR/ecosystem.config.js" "$BACKEND_TARGET_DIR/"
+if [ -f "$BACKEND_SOURCE_DIR/ecosystem.config.cjs" ]; then
+    echo "Copying ecosystem.config.cjs..."
+    cp "$BACKEND_SOURCE_DIR/ecosystem.config.cjs" "$BACKEND_TARGET_DIR/"
+elif [ -f "$BACKEND_SOURCE_DIR/ecosystem.config.js" ]; then
+    echo "Copying ecosystem.config.js (will be renamed to .cjs)..."
+    cp "$BACKEND_SOURCE_DIR/ecosystem.config.js" "$BACKEND_TARGET_DIR/ecosystem.config.cjs"
 fi
 
 # Set ownership
@@ -99,8 +102,8 @@ fi
 # Step 4: Create PM2 config if it doesn't exist
 echo ""
 echo -e "${YELLOW}Step 4: Setting up PM2 configuration...${NC}"
-if [ ! -f "$BACKEND_TARGET_DIR/ecosystem.config.js" ]; then
-    cat > "$BACKEND_TARGET_DIR/ecosystem.config.js" << 'EOF'
+if [ ! -f "$BACKEND_TARGET_DIR/ecosystem.config.cjs" ]; then
+    cat > "$BACKEND_TARGET_DIR/ecosystem.config.cjs" << 'EOF'
 module.exports = {
   apps: [{
     name: 'voynich-backend',
@@ -122,7 +125,7 @@ module.exports = {
   }]
 };
 EOF
-    sudo chown "$ACTUAL_USER:$ACTUAL_USER" "$BACKEND_TARGET_DIR/ecosystem.config.js"
+    sudo chown "$ACTUAL_USER:$ACTUAL_USER" "$BACKEND_TARGET_DIR/ecosystem.config.cjs"
     echo -e "${GREEN}✓ PM2 config created${NC}"
 else
     echo -e "${GREEN}✓ PM2 config already exists${NC}"
@@ -143,7 +146,7 @@ echo -e "${YELLOW}Step 6: Starting backend with PM2...${NC}"
 pm2 delete voynich-backend 2>/dev/null || true
 
 # Start the process
-pm2 start "$BACKEND_TARGET_DIR/ecosystem.config.js"
+pm2 start "$BACKEND_TARGET_DIR/ecosystem.config.cjs"
 
 # Save PM2 configuration
 pm2 save

@@ -56,7 +56,7 @@ The script deploys these files to `/var/www/voynich-backend`:
 ├── server.mjs              ← Main server code
 ├── package.json            ← Dependencies
 ├── package-lock.json       ← Dependency versions
-├── ecosystem.config.js     ← PM2 configuration
+├── ecosystem.config.cjs    ← PM2 configuration (CommonJS format)
 └── node_modules/           ← Installed via npm install
     └── undici/             ← CRITICAL: fetch polyfill
 ```
@@ -133,7 +133,7 @@ sudo mkdir -p /var/www/voynich-backend
 sudo chown -R $USER:$USER /var/www/voynich-backend
 
 # 2. Copy files
-cp server.mjs package.json package-lock.json ecosystem.config.js /var/www/voynich-backend/
+cp server.mjs package.json package-lock.json ecosystem.config.cjs /var/www/voynich-backend/
 
 # 3. Install dependencies
 cd /var/www/voynich-backend
@@ -144,7 +144,7 @@ sudo mkdir -p /var/log/pm2
 sudo chown -R $USER:$USER /var/log/pm2
 
 # 5. Start with PM2
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 pm2 save
 
 # 6. Verify

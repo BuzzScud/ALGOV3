@@ -7,7 +7,7 @@ This directory contains all the files needed to deploy the backend server.
 - `server.mjs` - Main Node.js server file
 - `package.json` - Dependencies configuration
 - `package-lock.json` - Dependency version lock file
-- `ecosystem.config.js` - PM2 process manager configuration
+- `ecosystem.config.cjs` - PM2 process manager configuration (CommonJS format)
 - `deploy-backend.sh` - Automated deployment script
 
 ## Quick Deployment
@@ -63,7 +63,7 @@ cd /var/www/voynich-backend
 npm install
 
 # 4. Start with PM2
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
