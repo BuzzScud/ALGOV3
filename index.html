@@ -453,14 +453,55 @@
           });
         };
       }
-      // Make sure it's also available as global fetch
-      if (typeof fetch === 'undefined') {
-        // Create a reference to window.fetch in global scope
-        try {
-          eval('var fetch = window.fetch;');
-        } catch(e) {
-          // If eval fails, at least window.fetch will work
+      // Make sure it's also available as global fetch variable
+      // In browser context, we need to make fetch available in the global scope
+      // Since we can't use 'var' at top level in strict mode, we'll use a workaround
+      try {
+        // Try to create a global fetch reference
+        if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+          // Use Object.defineProperty to create a global fetch
+          if (typeof globalThis !== 'undefined') {
+            Object.defineProperty(globalThis, 'fetch', {
+              value: window.fetch,
+              writable: true,
+              configurable: true
+            });
+          }
+          // Also try to set it directly if possible
+          try {
+            // This will work in non-strict mode
+            if (typeof this !== 'undefined' && this !== window) {
+              this.fetch = window.fetch;
+            }
+          } catch(e) {
+            // Ignore if this doesn't work
+          }
         }
+      } catch(e) {
+        // If all else fails, at least window.fetch will work
+        console.warn('Could not create global fetch variable, using window.fetch instead');
+      }
+    }
+    
+    // CRITICAL: Create a global fetch alias that always points to window.fetch
+    // This ensures fetch() calls work even if the global variable isn't set
+    if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+      // Create a function that will be called when fetch is used
+      // We'll override any existing fetch with window.fetch
+      try {
+        // In browser, we can't easily create a true global, but we can ensure
+        // all code uses window.fetch by making it the default
+        if (typeof fetch === 'undefined') {
+          // Use a getter to make fetch always return window.fetch
+          Object.defineProperty(window, 'fetch', {
+            value: window.fetch,
+            writable: true,
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch(e) {
+        // Ignore errors
       }
     }
     
