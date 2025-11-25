@@ -529,6 +529,8 @@
     
     // Global chart variable
     let chart;
+    // Global canvas element variable (needed for event listeners)
+    let ctx;
     
     waitForChart(() => {
       // Check if Chart.js is loaded
@@ -547,7 +549,7 @@
     });
     
     function initializeChart() {
-      const ctx = document.getElementById('chart');
+      ctx = document.getElementById('chart');
       if (!ctx) {
         console.error('Canvas element not found, retrying...');
         setTimeout(initializeChart, 100);
@@ -641,6 +643,9 @@
         }
       }
     });
+    
+    // Attach pan listeners after chart is created
+    attachPanListeners();
     } // End of initializeChart function
 
     // Track last projection method used
@@ -1548,7 +1553,7 @@
       }
     });
 
-    // Manual panning
+    // Manual panning - only attach listeners if ctx is available
     let isPanning = false;
     let panStartX = 0;
     let panStartY = 0;
@@ -1556,6 +1561,13 @@
     let panStartXMax = 0;
     let panStartYMin = 0;
     let panStartYMax = 0;
+
+    // Attach event listeners only after ctx is initialized
+    function attachPanListeners() {
+      if (!ctx) {
+        console.warn('Canvas element not available for pan listeners');
+        return;
+      }
 
     ctx.addEventListener('mousedown', (e) => {
       if (!chart.data.labels || chart.data.labels.length === 0) return;
@@ -1615,6 +1627,10 @@
         ctx.style.cursor = 'grab';
       }
     });
+    }
+
+    // Call attachPanListeners after chart is initialized
+    // This will be called from initializeChart after the chart is created
 
     $('resetZoomBtn').addEventListener('click', () => {
       try {
