@@ -1018,12 +1018,20 @@
         
         let symbol = $('ticker').value.trim().toUpperCase();
         
-        // Validate symbol format
-        if (!symbol) {
-          throw new Error('Please enter a stock symbol');
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
         }
         
-        // Remove any invalid characters and validate format
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
         symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
         if (symbol.length === 0 || symbol.length > 10) {
           throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
@@ -1275,12 +1283,20 @@
         
         let symbol = $('ticker').value.trim().toUpperCase();
         
-        // Validate symbol format
-        if (!symbol) {
-          throw new Error('Please enter a stock symbol');
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
         }
         
-        // Remove any invalid characters and validate format
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
         symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
         if (symbol.length === 0 || symbol.length > 10) {
           throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
