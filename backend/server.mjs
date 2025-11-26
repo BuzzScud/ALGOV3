@@ -2151,11 +2151,23 @@ app.use(express.static(projectRoot));
 // Serve /trading/ paths - map to frontend directory for proper file resolution
 // This handles the production case where /trading/css/tailwind.css maps to frontend/css/tailwind.css
 const frontendPath = join(projectRoot, 'frontend');
-app.use('/trading', express.static(frontendPath));
+app.use('/trading', express.static(frontendPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    }
+  }
+}));
 app.use('/trading', express.static(projectRoot)); // Also serve from root for node_modules
 
 // Serve /frontend/ paths - also from frontend directory
-app.use('/frontend', express.static(frontendPath));
+app.use('/frontend', express.static(frontendPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    }
+  }
+}));
 
 // Add logging middleware for static file requests
 app.use((req, res, next) => {
