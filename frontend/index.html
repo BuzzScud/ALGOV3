@@ -8,43 +8,40 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1e293b">
   
-  <!-- Set base path - will be updated by script below if needed -->
-  <base href="/trading/" id="base-href">
-  
-  <!-- Auto-detect environment and update base + paths BEFORE resources load -->
+  <!-- Auto-detect environment and set correct base path BEFORE any resources -->
   <script>
-    // CRITICAL: This must run synchronously before any resources load
+    // CRITICAL: Must run IMMEDIATELY, synchronously, before any resources
     (function() {
-      try {
-        var path = window.location.pathname || '';
-        var hostname = window.location.hostname || '';
-        var isProduction = path.indexOf('/trading/') !== -1 || 
-                          (hostname.indexOf('localhost') === -1 && hostname !== '127.0.0.1' && hostname !== '');
-        
-        // Update base tag immediately if in development
-        if (!isProduction) {
-          var baseEl = document.getElementById('base-href');
-          if (baseEl) {
-            baseEl.href = '/frontend/';
-          }
+      var path = (window.location && window.location.pathname) || '';
+      var hostname = (window.location && window.location.hostname) || '';
+      
+      // Detect environment: production if URL contains /trading/ OR hostname is not localhost
+      var isProduction = path.indexOf('/trading') !== -1 || 
+                        (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.indexOf('localhost') === -1);
+      
+      var basePath = isProduction ? '/trading/' : '/frontend/';
+      
+      // Create and inject base tag BEFORE any other content
+      var base = document.createElement('base');
+      base.href = basePath;
+      
+      // Insert at the very beginning of head (before any links/scripts)
+      var head = document.getElementsByTagName('head')[0];
+      if (head) {
+        if (head.firstChild) {
+          head.insertBefore(base, head.firstChild);
+        } else {
+          head.appendChild(base);
         }
-        
-        // Store for later use
-        window.__BASE_PATH__ = isProduction ? '/trading/' : '/frontend/';
-        window.__IS_PRODUCTION__ = isProduction;
-        
-        // Also update any already-parsed link/script tags (fallback)
-        if (!isProduction && document.readyState === 'loading') {
-          // Resources haven't loaded yet, we're good
-        }
-      } catch (e) {
-        console.error('Base path detection error:', e);
-        window.__BASE_PATH__ = '/trading/'; // Default to production
       }
+      
+      // Store for JavaScript use
+      window.__BASE_PATH__ = basePath;
+      window.__IS_PRODUCTION__ = isProduction;
     })();
   </script>
   
-  <!-- Resources use relative paths - will resolve via base href -->
+  <!-- Resources use relative paths - they will resolve via the base href set above -->
   <link href="css/tailwind.css" rel="stylesheet">
   <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
   <script src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
