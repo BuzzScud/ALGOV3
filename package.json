@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "build:css": "tailwindcss -i ./input.css -o ./css/tailwind.css --minify"
+    "build:css": "cd frontend && tailwindcss -i ./input.css -o ./css/tailwind.css --minify"
   },
   "keywords": [
     "trading",

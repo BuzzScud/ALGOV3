@@ -60,7 +60,62 @@ else
     echo -e "${GREEN}✓ Files copied${NC}"
 fi
 
-# Step 3: Set correct permissions
+# Step 3: Install or copy node_modules
+echo ""
+echo -e "${YELLOW}Installing node_modules...${NC}"
+cd "$FRONTEND_TARGET_DIR"
+
+# Check if package.json exists in target directory
+if [ -f "$FRONTEND_TARGET_DIR/package.json" ]; then
+    npm install --production 2>/dev/null || {
+        echo -e "${YELLOW}npm install in target directory failed, copying from source...${NC}"
+        # If target has package.json but install fails, try copying from source
+        if [ -d "$FRONTEND_SOURCE_DIR/../node_modules" ]; then
+            echo "Copying node_modules from source..."
+            sudo cp -r "$FRONTEND_SOURCE_DIR/../node_modules" "$FRONTEND_TARGET_DIR/" 2>/dev/null || true
+        fi
+    }
+else
+    # Copy node_modules from project root
+    if [ -d "$FRONTEND_SOURCE_DIR/../node_modules" ]; then
+        echo "Copying node_modules from project root..."
+        sudo cp -r "$FRONTEND_SOURCE_DIR/../node_modules" "$FRONTEND_TARGET_DIR/" 2>/dev/null || true
+    else
+        echo -e "${YELLOW}⚠ node_modules not found in source. Installing from package.json...${NC}"
+        # Copy package.json if it exists in source
+        if [ -f "$FRONTEND_SOURCE_DIR/package.json" ]; then
+            cp "$FRONTEND_SOURCE_DIR/package.json" "$FRONTEND_TARGET_DIR/"
+            npm install --production
+        else
+            echo -e "${RED}✗ No package.json found. Please ensure frontend/package.json exists.${NC}"
+        fi
+    fi
+fi
+
+# Verify critical node_modules exist
+if [ -d "$FRONTEND_TARGET_DIR/node_modules/chart.js" ] && \
+   [ -d "$FRONTEND_TARGET_DIR/node_modules/chartjs-plugin-zoom" ] && \
+   [ -d "$FRONTEND_TARGET_DIR/node_modules/preline" ]; then
+    echo -e "${GREEN}✓ node_modules installed${NC}"
+else
+    echo -e "${RED}⚠ Some node_modules are missing. Frontend may not work correctly.${NC}"
+fi
+
+# Step 4: Build Tailwind CSS
+echo ""
+echo -e "${YELLOW}Building Tailwind CSS...${NC}"
+if [ -f "$FRONTEND_TARGET_DIR/input.css" ] && [ -f "$FRONTEND_TARGET_DIR/tailwind.config.js" ]; then
+    if command -v tailwindcss &> /dev/null || [ -f "$FRONTEND_TARGET_DIR/../node_modules/.bin/tailwindcss" ]; then
+        cd "$FRONTEND_TARGET_DIR"
+        npx tailwindcss -i ./input.css -o ./css/tailwind.css --minify 2>/dev/null || \
+        ../../node_modules/.bin/tailwindcss -i ./input.css -o ./css/tailwind.css --minify 2>/dev/null || true
+        echo -e "${GREEN}✓ Tailwind CSS built${NC}"
+    else
+        echo -e "${YELLOW}⚠ tailwindcss not found - CSS may be outdated${NC}"
+    fi
+fi
+
+# Step 5: Set correct permissions
 echo ""
 echo -e "${YELLOW}Setting file permissions...${NC}"
 sudo chown -R apache:apache "$FRONTEND_TARGET_DIR" 2>/dev/null || \
@@ -70,7 +125,7 @@ sudo chown -R "$ACTUAL_USER:$ACTUAL_USER" "$FRONTEND_TARGET_DIR"
 sudo chmod -R 755 "$FRONTEND_TARGET_DIR"
 echo -e "${GREEN}✓ Permissions set${NC}"
 
-# Step 4: Verify critical files exist
+# Step 6: Verify critical files exist
 echo ""
 echo -e "${YELLOW}Verifying critical files...${NC}"
 if [ -f "$FRONTEND_TARGET_DIR/index.html" ]; then
@@ -86,7 +141,7 @@ else
     echo -e "${YELLOW}⚠ tailwind.css not found - CSS may not load correctly${NC}"
 fi
 
-# Step 5: Check for base href in index.html
+# Step 7: Check for base href in index.html
 echo ""
 echo -e "${YELLOW}Checking base href configuration...${NC}"
 if grep -q 'base href="/frontend/"' "$FRONTEND_TARGET_DIR/index.html"; then
