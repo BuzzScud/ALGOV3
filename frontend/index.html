@@ -8,44 +8,40 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1e293b">
   
-  <!-- Auto-detect environment and set correct base path BEFORE any resources -->
+  <!-- Detect environment and set base path - production default -->
   <script>
-    // CRITICAL: Must run IMMEDIATELY, synchronously, before any resources
-    (function() {
-      var path = (window.location && window.location.pathname) || '';
-      var hostname = (window.location && window.location.hostname) || '';
-      
-      // Detect environment: production if URL contains /trading/ OR hostname is not localhost
-      var isProduction = path.indexOf('/trading') !== -1 || 
-                        (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.indexOf('localhost') === -1);
-      
-      var basePath = isProduction ? '/trading/' : '/frontend/';
-      
-      // Create and inject base tag BEFORE any other content
-      var base = document.createElement('base');
-      base.href = basePath;
-      
-      // Insert at the very beginning of head (before any links/scripts)
-      var head = document.getElementsByTagName('head')[0];
-      if (head) {
-        if (head.firstChild) {
-          head.insertBefore(base, head.firstChild);
-        } else {
-          head.appendChild(base);
-        }
-      }
-      
-      // Store for JavaScript use
-      window.__BASE_PATH__ = basePath;
-      window.__IS_PRODUCTION__ = isProduction;
-    })();
+    // Synchronous detection - must run before any resources
+    var isDev = (window.location && (
+      window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1' ||
+      window.location.pathname.indexOf('/frontend') !== -1
+    ));
+    var basePath = isDev ? '/frontend/' : '/trading/';
+    window.__BASE_PATH__ = basePath;
+  </script>
+  <base href="/trading/" id="app-base">
+  <script>
+    // Update base if development
+    if (window.__BASE_PATH__ === '/frontend/') {
+      document.getElementById('app-base').href = '/frontend/';
+    }
   </script>
   
-  <!-- Resources use relative paths - they will resolve via the base href set above -->
-  <link href="css/tailwind.css" rel="stylesheet">
-  <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
-  <script src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
-  <script src="node_modules/preline/dist/preline.js"></script>
+  <!-- Resources with absolute paths that work in both environments -->
+  <link id="css-link" href="/trading/css/tailwind.css" rel="stylesheet">
+  <script id="chartjs-script" src="/trading/node_modules/chart.js/dist/chart.umd.min.js"></script>
+  <script id="zoom-script" src="/trading/node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script id="preline-script" src="/trading/node_modules/preline/dist/preline.js"></script>
+  
+  <!-- Update paths for development environment -->
+  <script>
+    if (window.__BASE_PATH__ === '/frontend/') {
+      document.getElementById('css-link').href = '/frontend/css/tailwind.css';
+      document.getElementById('chartjs-script').src = '/frontend/node_modules/chart.js/dist/chart.umd.min.js';
+      document.getElementById('zoom-script').src = '/frontend/node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js';
+      document.getElementById('preline-script').src = '/frontend/node_modules/preline/dist/preline.js';
+    }
+  </script>
   
   <style>
     canvas {
