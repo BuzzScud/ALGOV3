@@ -51,6 +51,14 @@
   <script src="node_modules/preline/dist/preline.js"></script>
   
   <style>
+    /* Ensure full height layout */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    
     canvas {
       cursor: grab;
     }
@@ -105,45 +113,74 @@
       transform: translateX(0);
     }
     
-    /* Floating Menu Button - Material Design FAB */
-    #mobileMenuBtn {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      border-radius: 50%;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* Navigation active state for sidebar */
+    #hs-sidebar-offcanvas .nav-item.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+    
+    #hs-sidebar-offcanvas .nav-item.active.dark {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    /* Sidebar - always visible on desktop, overlay on mobile */
+    #hs-sidebar-offcanvas {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 1000;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      border: none;
-      touch-action: manipulation;
+      flex-shrink: 0;
+      width: 16rem;
+      height: 100%;
+      position: relative;
+      z-index: auto;
     }
     
-    #mobileMenuBtn:active {
-      transform: scale(0.95);
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-    }
-    
-    #mobileMenuBtn svg {
-      width: 24px;
-      height: 24px;
-      color: white;
-      transition: transform 0.3s ease;
-    }
-    
-    #mobileMenuBtn.active svg {
-      transform: rotate(90deg);
-    }
-    
-    /* Hide on desktop */
+    /* Ensure sidebar stays in normal flow on desktop */
     @media (min-width: 1024px) {
-      #mobileMenuBtn,
+      #hs-sidebar-offcanvas {
+        position: relative;
+        z-index: auto;
+        transform: none;
+        display: flex !important;
+      }
+    }
+    
+    /* Mobile sidebar as overlay */
+    @media (max-width: 1023px) {
+      #hs-sidebar-offcanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 9999;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        display: none;
+      }
+      
+      #hs-sidebar-offcanvas.mobile-open {
+        display: flex;
+        transform: translateX(0);
+      }
+      
+      /* Mobile menu overlay backdrop */
+      #mobileMenuOverlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+      }
+      
+      #mobileMenuOverlay.active {
+        display: block;
+      }
+    }
+    
+    /* Hide old mobile menu elements */
+    @media (min-width: 1024px) {
       #mobileMenuOverlay,
       #mobileMenuPanel {
         display: none !important;
@@ -172,20 +209,72 @@
     #mobileMenuPanel::-webkit-scrollbar-thumb:hover {
       background: #64748b;
     }
+
+    /* Navigation Active State */
+    .nav-item.active,
+    .mobile-nav-item.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+
+    .nav-item.active:hover,
+    .mobile-nav-item.active:hover {
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+
+    /* Dark mode active state */
+    .dark .nav-item.active {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+
+    .dark .nav-item.active:hover {
+      background-color: rgba(59, 130, 246, 0.25);
+    }
+
+    /* Page Content Transitions */
+    .page-content {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Ensure charts page is visible and takes full height */
+    #page-charts {
+      min-height: 100%;
+      display: flex;
+    }
+    
+    #page-charts.hidden {
+      display: none !important;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
-<body class="bg-gray-900 text-gray-100 antialiased">
-  <!-- Mobile Menu Button (Floating Action Button) -->
-  <button id="mobileMenuBtn" type="button" aria-label="Open menu" class="lg:hidden">
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-    </svg>
-  </button>
+<body class="bg-gray-900 text-gray-100 antialiased h-full overflow-hidden">
+  <!-- Navigation Toggle -->
+  <div class="lg:hidden fixed top-4 start-4 z-50">
+    <button type="button" id="mobileMenuToggle" class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-start bg-gray-800 border border-gray-800 text-white text-sm font-medium rounded-lg shadow-2xs align-middle hover:bg-gray-950 focus:outline-hidden focus:bg-gray-900 dark:bg-white dark:text-neutral-800 dark:hover:bg-neutral-200 dark:focus:bg-neutral-200" aria-label="Toggle navigation">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+      Menu
+    </button>
+  </div>
+  <!-- End Navigation Toggle -->
   
-  <!-- Mobile Menu Overlay -->
+  <!-- Mobile Menu Overlay Backdrop -->
   <div id="mobileMenuOverlay" class="lg:hidden"></div>
   
-  <!-- Mobile Menu Panel (Slide-in from right) -->
+  <!-- Mobile Menu Panel (Slide-in from right) - Keep for backward compatibility -->
   <div id="mobileMenuPanel" class="lg:hidden">
     <!-- Mobile Menu Header -->
     <div class="gradient-bg px-6 py-6 border-b border-blue-700/50 sticky top-0 z-10">
@@ -209,6 +298,31 @@
           </svg>
         </button>
       </div>
+    </div>
+    
+    <!-- Mobile Navigation Menu -->
+    <div class="px-4 py-4 border-b border-gray-700">
+      <nav class="space-y-2">
+        <a href="#" data-page="dashboard" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+          </svg>
+          <span class="font-medium">Dashboard</span>
+        </a>
+        <a href="#" data-page="charts" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer active">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <span class="font-medium">Charts</span>
+        </a>
+        <a href="#" data-page="settings" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span class="font-medium">Settings</span>
+        </a>
+      </nav>
     </div>
     
     <!-- Mobile Menu Content (Same as sidebar but optimized for mobile) -->
@@ -393,39 +507,221 @@
     </div>
   </div>
   
-  <div class="flex h-screen overflow-hidden">
+  <div class="flex h-screen overflow-hidden w-full">
     <!-- Sidebar -->
-    <div class="hidden lg:flex lg:flex-shrink-0">
-      <div class="flex flex-col w-96 bg-gray-800 border-r border-gray-700">
+    <aside id="hs-sidebar-offcanvas" class="w-64 h-full flex flex-col bg-white border-e border-gray-200 dark:bg-neutral-800 dark:border-neutral-700 flex-shrink-0" role="complementary" aria-label="Sidebar">
+      <div class="relative flex flex-col h-full max-h-full">
         <!-- Header -->
-        <div class="gradient-bg px-6 py-6 border-b border-blue-700/50">
-          <div class="flex items-center gap-3">
-            <div class="flex-shrink-0">
-              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
+        <header class="p-4 flex justify-between items-center gap-x-2">
+          <a class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80 dark:text-white" href="#" aria-label="Brand">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <div class="text-xl font-bold dark:text-white">Prime Tetration</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Trading Projections</div>
               </div>
             </div>
-            <div>
-              <h1 class="text-xl font-bold text-white">Prime Tetration</h1>
-              <p class="text-sm text-blue-100">Trading Projections</p>
+          </a>
+
+          <div class="lg:hidden -me-2">
+            <!-- Close Button -->
+            <button type="button" id="mobileSidebarClose" class="flex justify-center items-center gap-x-3 size-6 bg-white border border-gray-200 text-sm text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:hover:text-neutral-200 dark:focus:text-neutral-200">
+              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <span class="sr-only">Close</span>
+            </button>
+            <!-- End Close Button -->
+          </div>
+        </header>
+        <!-- End Header -->
+
+        <!-- Body -->
+        <nav class="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+          <div class="hs-accordion-group pb-0 px-2 w-full flex flex-col flex-wrap" data-hs-accordion-always-open>
+            <ul class="space-y-1">
+              <li>
+                <a href="#" data-page="dashboard" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Dashboard
+                </a>
+              </li>
+
+              <li>
+                <a href="#" data-page="charts" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/></svg>
+                  Charts
+                </a>
+              </li>
+
+              <li>
+                <a href="#" data-page="settings" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>
+                  Settings
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+        <!-- End Body -->
+
+        <!-- User Profile Widget -->
+        <div class="border-t border-gray-200 dark:border-neutral-700 p-4 mt-auto">
+          <div class="relative">
+            <button id="userProfileBtn" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition-all cursor-pointer group">
+              <div class="flex-shrink-0">
+                <div id="userAvatar" class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm border border-gray-200 dark:border-neutral-700">
+                  <span id="userInitials">U</span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <div id="userName" class="text-sm font-medium text-gray-800 dark:text-white truncate">User</div>
+                <div id="userEmail" class="text-xs text-gray-500 dark:text-gray-400 truncate">user@example.com</div>
+              </div>
+              <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div id="userProfileDropdown" class="hidden absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50">
+              <div class="py-1">
+                <button id="viewProfileBtn" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                  View Profile
+                </button>
+                <button id="editProfileBtn" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  </svg>
+                  Edit Profile
+                </button>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                <button id="logoutBtn" class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                  </svg>
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+    <!-- End Sidebar -->
 
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto">
-          <div class="p-6 space-y-8">
-            <!-- Stock Symbol Section -->
-            <div>
-              <label for="ticker" class="block text-sm font-semibold text-gray-300 mb-3">
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      <!-- Page Containers -->
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page-content hidden flex-1 flex flex-col overflow-y-auto">
+        <div class="px-6 py-6">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold text-white mb-2">Dashboard</h1>
+            <p class="text-gray-400">Overview of your trading projections and analytics</p>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Total Projections</p>
+                  <p class="text-2xl font-bold text-white">0</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Active Symbols</p>
+                  <p class="text-2xl font-bold text-white">0</p>
+                </div>
+                <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Prime Depth</p>
+                  <p class="text-2xl font-bold text-white">31</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">System Status</p>
+                  <p class="text-lg font-bold text-green-400">Active</p>
+                </div>
+                <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Recent Activity</h2>
+            <div class="space-y-3">
+              <div class="flex items-center gap-4 p-3 bg-gray-700/30 rounded-lg">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm text-gray-300">No recent activity</p>
+                  <p class="text-xs text-gray-500">Start by creating a projection in the Charts page</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Page (Current Page) -->
+      <div id="page-charts" class="page-content flex-1 flex flex-col overflow-hidden">
+      <!-- Sidebar Content (moved to top of main window) -->
+      <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
+        <div class="space-y-4">
+          <!-- Stock Symbol Section -->
+          <div class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[200px]">
+              <label for="ticker" class="block text-sm font-semibold text-gray-300 mb-2">
                 Stock Symbol
               </label>
               <div class="flex gap-2">
                 <div class="relative flex-1">
                   <input type="text" id="ticker" value="AAPL" placeholder="Enter symbol (e.g., AAPL, TSLA)" 
-                    class="py-3 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
+                    class="py-2 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
                   <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -433,7 +729,7 @@
                   </div>
                 </div>
                 <button id="searchStockBtn" type="button" 
-                  class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
+                  class="py-2 px-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
                   title="Search Stock">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -442,155 +738,148 @@
               </div>
             </div>
 
-            <!-- Stock Info Section -->
+            <!-- Stock Info Section (inline) -->
             <div id="stockInfo" class="hidden">
-              <div class="border border-gray-600 rounded-lg p-4 bg-gray-700/30 space-y-3">
-                <div class="flex items-center justify-between">
+              <div class="border border-gray-600 rounded-lg p-3 bg-gray-700/30">
+                <div class="flex items-center gap-3">
                   <div>
                     <div class="flex items-center gap-2 mb-1">
-                      <span id="stockSymbol" class="text-lg font-bold text-white">-</span>
+                      <span id="stockSymbol" class="text-base font-bold text-white">-</span>
                       <span id="stockName" class="text-xs text-gray-400">-</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span id="stockPrice" class="text-xl font-semibold text-white">$0.00</span>
+                      <span id="stockPrice" class="text-lg font-semibold text-white">$0.00</span>
                       <span id="stockChange" class="text-sm font-medium">-</span>
                       <span id="stockChangePercent" class="text-sm font-medium">-</span>
                     </div>
                   </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 pt-3 border-t border-gray-600">
-                  <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 mb-1">Previous Close</span>
-                    <span id="stockPreviousClose" class="text-sm text-white font-medium">-</span>
-                  </div>
-                  <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 mb-1">Open</span>
-                    <span id="stockOpen" class="text-sm text-white font-medium">-</span>
-                  </div>
-                  <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 mb-1">High</span>
-                    <span id="stockHigh" class="text-sm text-white font-medium">-</span>
-                  </div>
-                  <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 mb-1">Low</span>
-                    <span id="stockLow" class="text-sm text-white font-medium">-</span>
+                  <div class="grid grid-cols-2 gap-2 pl-3 border-l border-gray-600">
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Prev Close</span>
+                      <span id="stockPreviousClose" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Open</span>
+                      <span id="stockOpen" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">High</span>
+                      <span id="stockHigh" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Low</span>
+                      <span id="stockLow" class="text-xs text-white font-medium">-</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
+          <!-- Projection Settings and Actions (horizontal layout) -->
+          <div class="flex flex-wrap items-end gap-4">
             <!-- Projection Settings -->
-            <div>
-              <div class="flex items-center gap-2 mb-4">
-                <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
-                <h2 class="text-base font-semibold text-gray-200">Projection Settings</h2>
+            <div class="flex-1 min-w-[300px]">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-1 h-5 bg-blue-500 rounded-full"></div>
+                <h2 class="text-sm font-semibold text-gray-200">Projection Settings</h2>
               </div>
-              
-              <div class="space-y-5">
+              <div class="flex gap-3">
                 <!-- Prime Depth -->
-                <div>
-                  <label for="primeDepthInput" class="block text-sm font-medium text-gray-400 mb-3">
+                <div class="flex-1">
+                  <label for="primeDepthInput" class="block text-xs font-medium text-gray-400 mb-1">
                     Prime Depth
                   </label>
                   <div class="relative">
                     <input type="number" id="primeDepthInput" value="31" min="11" max="281" step="1" 
-                      class="py-3 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
+                      class="py-2 px-3 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
                       placeholder="Enter prime (11-281)">
-                    <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
-                      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="absolute inset-y-0 end-0 flex items-center pe-2 pointer-events-none">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
                       </svg>
                     </div>
                   </div>
-                  <div class="mt-2 text-xs text-gray-500 text-center">
+                  <div class="mt-1 text-xs text-gray-500 text-center">
                     Selected: <span class="text-blue-400 font-semibold" id="depthPrimeLabel">31</span>
                   </div>
                 </div>
 
                 <!-- Fixed Settings (Combined) -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-400 mb-3">
+                <div class="flex-1">
+                  <label class="block text-xs font-medium text-gray-400 mb-1">
                     Fixed Settings
                   </label>
-                  <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
-                    <div class="grid grid-cols-3 gap-4 text-center">
+                  <div class="border border-gray-600 rounded-lg p-2 bg-gray-800/50">
+                    <div class="grid grid-cols-3 gap-2 text-center">
                       <div class="flex flex-col items-center">
-                        <p class="text-xs text-gray-500 mb-1.5">Base Seed</p>
-                        <span class="text-blue-400 font-semibold text-xl" id="baseLabel">3</span>
+                        <p class="text-xs text-gray-500 mb-0.5">Base Seed</p>
+                        <span class="text-blue-400 font-semibold text-base" id="baseLabel">3</span>
                       </div>
                       <div class="flex flex-col items-center border-l border-r border-gray-600/50">
-                        <p class="text-xs text-gray-500 mb-1.5">Projections</p>
-                        <span class="text-blue-400 font-semibold text-xl" id="projCountLabel">12</span>
+                        <p class="text-xs text-gray-500 mb-0.5">Projections</p>
+                        <span class="text-blue-400 font-semibold text-base" id="projCountLabel">12</span>
                       </div>
                       <div class="flex flex-col items-center">
-                        <p class="text-xs text-gray-500 mb-1.5">Horizon</p>
-                        <span class="text-blue-400 font-semibold text-xl" id="horizonLabel">240</span>
+                        <p class="text-xs text-gray-500 mb-0.5">Horizon</p>
+                        <span class="text-blue-400 font-semibold text-base" id="horizonLabel">240</span>
                       </div>
                     </div>
-                    <p class="text-xs text-gray-500 text-center mt-3">All values are fixed</p>
                   </div>
                 </div>
-
               </div>
             </div>
 
             <!-- Action Buttons -->
-            <div class="pt-4 border-t border-gray-700">
-              <div class="flex flex-col gap-3">
-                <button id="tetrationBtn" type="button" 
-                  class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                  </svg>
-                  Tetration Projection
-                </button>
-                <button id="snapshotBtn" type="button" 
-                  class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                  Generate Snapshot
-                </button>
-                <button id="clearBtn" type="button" 
-                  class="w-full py-2.5 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                  Clear Chart
-                </button>
+            <div class="flex gap-2">
+              <button id="tetrationBtn" type="button" 
+                class="py-2 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Tetration Projection
+              </button>
+              <button id="snapshotBtn" type="button" 
+                class="py-2 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Generate Snapshot
+              </button>
+              <button id="clearBtn" type="button" 
+                class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Clear Chart
+              </button>
+            </div>
+          </div>
+
+          <!-- Oscillation Metrics (hidden by default) -->
+          <div id="oscillationMetrics" class="hidden">
+            <h3 class="text-xs font-semibold uppercase text-gray-400 mb-2">Oscillation Analysis</h3>
+            <div class="flex flex-wrap gap-2">
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPattern">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Entropy: <span id="entropy">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDims">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimes">-</span></span>
               </div>
             </div>
-
-            <!-- Oscillation Metrics (hidden by default) -->
-            <div id="oscillationMetrics" class="pt-4 border-t border-gray-700 hidden">
-              <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">Oscillation Analysis</h3>
-              <div class="space-y-2">
-                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
-                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                  <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPattern">-</span></span>
-                </div>
-                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
-                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                  <span class="text-xs text-gray-300">Entropy: <span id="entropy">-</span></span>
-                </div>
-                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
-                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                  <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDims">-</span></span>
-                </div>
-                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
-                  <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
-                  <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimes">-</span></span>
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
       <!-- Chart Header -->
       <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
         <div class="flex items-center justify-between">
@@ -674,6 +963,125 @@
           <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
             <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
             <span class="text-xs text-gray-300">+8 Bit Guard Truncation</span>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page-content hidden flex-1 flex flex-col overflow-y-auto">
+        <div class="px-6 py-6">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold text-white mb-2">Settings</h1>
+            <p class="text-gray-400">Configure your application preferences</p>
+          </div>
+
+          <!-- Settings Sections -->
+          <div class="space-y-6">
+            <!-- General Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">General Settings</h2>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Theme</label>
+                    <p class="text-xs text-gray-500">Choose your preferred color scheme</p>
+                  </div>
+                  <select id="themeSelect" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Auto-refresh</label>
+                    <p class="text-xs text-gray-500">Automatically update chart data</p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoRefresh" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Projection Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">Projection Settings</h2>
+              <div class="space-y-4">
+                <div>
+                  <label for="defaultPrimeDepth" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Prime Depth
+                  </label>
+                  <input type="number" id="defaultPrimeDepth" value="31" min="11" max="281" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Default value for new projections (11-281)</p>
+                </div>
+
+                <div>
+                  <label for="defaultBaseSeed" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Base Seed
+                  </label>
+                  <input type="number" id="defaultBaseSeed" value="3" min="1" max="10" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Base seed value for calculations</p>
+                </div>
+
+                <div>
+                  <label for="defaultProjections" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Projections Count
+                  </label>
+                  <input type="number" id="defaultProjections" value="12" min="1" max="50" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Number of projections to generate</p>
+                </div>
+
+                <div>
+                  <label for="defaultHorizon" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Horizon
+                  </label>
+                  <input type="number" id="defaultHorizon" value="240" min="10" max="1000" step="10" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Time horizon for projections</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- API Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">API Configuration</h2>
+              <div class="space-y-4">
+                <div>
+                  <label for="apiEndpoint" class="block text-sm font-medium text-gray-300 mb-2">
+                    API Endpoint
+                  </label>
+                  <input type="text" id="apiEndpoint" value="http://localhost:3000" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Backend API server URL</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Enable Caching</label>
+                    <p class="text-xs text-gray-500">Cache API responses for better performance</p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="enableCache" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end">
+              <button id="saveSettingsBtn" type="button" 
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium">
+                Save Settings
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1301,6 +1709,233 @@
     }
     if (mobileMenuOverlay) {
       mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+    }
+
+    // Sidebar mobile toggle functionality
+    function openSidebar() {
+      const sidebar = document.getElementById('hs-sidebar-offcanvas');
+      const overlay = document.getElementById('mobileMenuOverlay');
+      if (sidebar) {
+        sidebar.classList.add('mobile-open');
+        sidebar.style.display = 'flex';
+      }
+      if (overlay) {
+        overlay.classList.add('active');
+      }
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('hs-sidebar-offcanvas');
+      const overlay = document.getElementById('mobileMenuOverlay');
+      if (sidebar) {
+        sidebar.classList.remove('mobile-open');
+        sidebar.style.display = 'none';
+      }
+      if (overlay) {
+        overlay.classList.remove('active');
+      }
+      document.body.style.overflow = '';
+    }
+
+    // Sidebar toggle event listeners
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileSidebarClose = document.getElementById('mobileSidebarClose');
+    const sidebarOverlay = document.getElementById('mobileMenuOverlay');
+
+    if (mobileMenuToggle) {
+      mobileMenuToggle.addEventListener('click', openSidebar);
+    }
+    if (mobileSidebarClose) {
+      mobileSidebarClose.addEventListener('click', closeSidebar);
+    }
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+
+    // Navigation System
+    function navigateToPage(pageName) {
+      // Hide all pages
+      const pages = document.querySelectorAll('.page-content');
+      pages.forEach(page => {
+        page.classList.add('hidden');
+      });
+
+      // Show selected page
+      const targetPage = document.getElementById(`page-${pageName}`);
+      if (targetPage) {
+        targetPage.classList.remove('hidden');
+      }
+
+      // Update navigation active states
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => {
+        item.classList.remove('active', 'bg-blue-600', 'text-white', 'bg-gray-100', 'dark:bg-neutral-700');
+        if (item.getAttribute('data-page') === pageName) {
+          item.classList.add('active', 'bg-gray-100', 'dark:bg-neutral-700');
+          // Update text color for active state
+          if (document.documentElement.classList.contains('dark')) {
+            item.classList.add('text-blue-400');
+            item.classList.remove('text-gray-800', 'dark:text-neutral-200');
+          } else {
+            item.classList.add('text-blue-600');
+            item.classList.remove('text-gray-800', 'dark:text-neutral-200');
+          }
+        } else {
+          // Reset to default colors
+          if (document.documentElement.classList.contains('dark')) {
+            item.classList.add('dark:text-neutral-200');
+            item.classList.remove('text-blue-400', 'text-blue-600');
+          } else {
+            item.classList.add('text-gray-800');
+            item.classList.remove('text-blue-400', 'text-blue-600');
+          }
+        }
+      });
+
+      // Update mobile menu navigation active states
+      const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+      mobileNavItems.forEach(item => {
+        item.classList.remove('active', 'bg-blue-600', 'text-white');
+        item.classList.add('text-gray-300');
+        if (item.getAttribute('data-page') === pageName) {
+          item.classList.add('active', 'bg-blue-600', 'text-white');
+          item.classList.remove('text-gray-300');
+        }
+      });
+
+      // Close mobile menu after navigation
+      closeMobileMenu();
+      
+      // Close sidebar on mobile after navigation
+      if (window.innerWidth < 1024) {
+        closeSidebar();
+      }
+    }
+
+    // Initialize navigation
+    function initializeNavigation() {
+      // Desktop sidebar navigation
+      const desktopNavItems = document.querySelectorAll('.nav-item');
+      desktopNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          const pageName = item.getAttribute('data-page');
+          if (pageName) {
+            navigateToPage(pageName);
+            // Close sidebar on mobile after navigation
+            if (window.innerWidth < 1024) {
+              closeSidebar();
+            }
+          }
+        });
+      });
+
+      // Mobile menu navigation
+      const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+      mobileNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          const pageName = item.getAttribute('data-page');
+          if (pageName) {
+            navigateToPage(pageName);
+          }
+        });
+      });
+
+      // Initialize to Charts page by default
+      navigateToPage('charts');
+    }
+
+    // Initialize navigation on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeNavigation);
+    } else {
+      initializeNavigation();
+    }
+
+    // Settings Save Handler
+    function initializeSettings() {
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+      if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+          // Get settings values
+          const theme = document.getElementById('themeSelect')?.value || 'dark';
+          const autoRefresh = document.getElementById('autoRefresh')?.checked || false;
+          const defaultPrimeDepth = document.getElementById('defaultPrimeDepth')?.value || '31';
+          const defaultBaseSeed = document.getElementById('defaultBaseSeed')?.value || '3';
+          const defaultProjections = document.getElementById('defaultProjections')?.value || '12';
+          const defaultHorizon = document.getElementById('defaultHorizon')?.value || '240';
+          const apiEndpoint = document.getElementById('apiEndpoint')?.value || 'http://localhost:3000';
+          const enableCache = document.getElementById('enableCache')?.checked || true;
+
+          // Save to localStorage
+          const settings = {
+            theme,
+            autoRefresh,
+            defaultPrimeDepth,
+            defaultBaseSeed,
+            defaultProjections,
+            defaultHorizon,
+            apiEndpoint,
+            enableCache
+          };
+          localStorage.setItem('appSettings', JSON.stringify(settings));
+
+          // Show success message
+          const btn = saveSettingsBtn;
+          const originalText = btn.textContent;
+          btn.textContent = 'Saved!';
+          btn.classList.add('bg-green-600');
+          btn.classList.remove('bg-blue-600');
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('bg-green-600');
+            btn.classList.add('bg-blue-600');
+          }, 2000);
+        });
+      }
+
+      // Load saved settings
+      const savedSettings = localStorage.getItem('appSettings');
+      if (savedSettings) {
+        try {
+          const settings = JSON.parse(savedSettings);
+          if (settings.theme && document.getElementById('themeSelect')) {
+            document.getElementById('themeSelect').value = settings.theme;
+          }
+          if (settings.autoRefresh !== undefined && document.getElementById('autoRefresh')) {
+            document.getElementById('autoRefresh').checked = settings.autoRefresh;
+          }
+          if (settings.defaultPrimeDepth && document.getElementById('defaultPrimeDepth')) {
+            document.getElementById('defaultPrimeDepth').value = settings.defaultPrimeDepth;
+          }
+          if (settings.defaultBaseSeed && document.getElementById('defaultBaseSeed')) {
+            document.getElementById('defaultBaseSeed').value = settings.defaultBaseSeed;
+          }
+          if (settings.defaultProjections && document.getElementById('defaultProjections')) {
+            document.getElementById('defaultProjections').value = settings.defaultProjections;
+          }
+          if (settings.defaultHorizon && document.getElementById('defaultHorizon')) {
+            document.getElementById('defaultHorizon').value = settings.defaultHorizon;
+          }
+          if (settings.apiEndpoint && document.getElementById('apiEndpoint')) {
+            document.getElementById('apiEndpoint').value = settings.apiEndpoint;
+          }
+          if (settings.enableCache !== undefined && document.getElementById('enableCache')) {
+            document.getElementById('enableCache').checked = settings.enableCache;
+          }
+        } catch (e) {
+          console.warn('Failed to load settings:', e);
+        }
+      }
+    }
+
+    // Initialize settings on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeSettings);
+    } else {
+      initializeSettings();
     }
     
     // Function to search for stock symbol
@@ -2051,7 +2686,7 @@
           'p-4 bg-green-900/20 border border-green-700 rounded-lg text-sm text-green-300 min-h-[60px] flex items-center'
         );
       } catch (e) {
-        console.error('Tetration projection error:', e);
+        console.error('Snapshot error:', e);
         console.error('Error details:', {
           message: e.message,
           stack: e.stack,
@@ -2466,7 +3101,7 @@
     const resetZoomBtn = $('resetZoomBtn');
     if (resetZoomBtn) {
       resetZoomBtn.addEventListener('click', () => {
-      try {
+        try {
         if (!chart.data.labels || chart.data.labels.length === 0) {
           console.log('No chart data to reset');
           return;
