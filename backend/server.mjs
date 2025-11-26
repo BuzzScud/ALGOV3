@@ -30,6 +30,7 @@ import { dirname, join } from 'path';
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import { existsSync } from 'fs';
 
 // Fetch is now guaranteed to be available via undici polyfill above
 // Store it in a module-level variable for reliable access
@@ -2101,8 +2102,11 @@ registerApiRoute('post', '/api/snapshot', async (req, res) => {
 
 // Serve static files AFTER API routes are registered
 // This ensures API routes are matched before static file middleware
-const nodeModulesPath = join(__dirname, 'node_modules');
+// Use project root node_modules (where frontend dependencies are installed)
+const nodeModulesPath = join(projectRoot, 'node_modules');
+const frontendNodeModulesPath = join(projectRoot, 'frontend', 'node_modules');
 console.log(`[STATIC FILES] Serving node_modules from: ${nodeModulesPath}`);
+console.log(`[STATIC FILES] Frontend node_modules from: ${frontendNodeModulesPath}`);
 console.log(`[STATIC FILES] __dirname: ${__dirname}`);
 
 // Serve node_modules with explicit paths
@@ -2120,10 +2124,31 @@ app.use('/trading/node_modules', express.static(nodeModulesPath, {
     }
   }
 }));
+// Serve node_modules from frontend directory (preferred) or project root (fallback)
+if (existsSync(frontendNodeModulesPath)) {
+  app.use('/frontend/node_modules', express.static(frontendNodeModulesPath, {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
+  console.log(`[STATIC FILES] Serving /frontend/node_modules from: ${frontendNodeModulesPath}`);
+} else {
+  app.use('/frontend/node_modules', express.static(nodeModulesPath, {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
+  console.log(`[STATIC FILES] Serving /frontend/node_modules from project root: ${nodeModulesPath}`);
+}
 
 // Serve other static files from project root (where frontend is located)
 app.use(express.static(projectRoot));
 app.use('/trading', express.static(projectRoot));
+app.use('/frontend', express.static(projectRoot));
 
 // Add logging middleware for static file requests
 app.use((req, res, next) => {
