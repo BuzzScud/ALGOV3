@@ -2145,6 +2145,31 @@ if (existsSync(frontendNodeModulesPath)) {
   console.log(`[STATIC FILES] Serving /frontend/node_modules from project root: ${nodeModulesPath}`);
 }
 
+// Explicitly serve CSS files from frontend/css directory
+// This ensures CSS files are always accessible regardless of path configuration
+const cssPath = join(projectRoot, 'frontend', 'css');
+app.use('/css', express.static(cssPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    }
+  }
+}));
+app.use('/trading/css', express.static(cssPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    }
+  }
+}));
+app.use('/frontend/css', express.static(cssPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    }
+  }
+}));
+
 // Serve other static files from project root (where frontend is located)
 app.use(express.static(projectRoot));
 
