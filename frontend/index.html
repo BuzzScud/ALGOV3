@@ -1,0 +1,3165 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>Prime Tetration Trading — Snapshot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1e293b">
+  
+  <!-- CRITICAL: Set base href synchronously BEFORE any resources load -->
+  <!-- This ensures all relative paths resolve correctly -->
+  <script>
+    (function() {
+      // Detect environment - must be synchronous, runs immediately
+      var path = (window.location && window.location.pathname) || '';
+      var hostname = (window.location && window.location.hostname) || '';
+      
+      // Production if: path contains /trading/ OR hostname is not localhost/127.0.0.1
+      var isProduction = path.indexOf('/trading') !== -1 || 
+                        (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.indexOf('localhost') === -1);
+      
+      var basePath = isProduction ? '/trading/' : '/frontend/';
+      
+      // Create base tag synchronously before any resources
+      var base = document.createElement('base');
+      base.href = basePath;
+      
+      // Insert at the very beginning of head (before any other elements)
+      var head = document.getElementsByTagName('head')[0];
+      if (head) {
+        if (head.firstChild) {
+          head.insertBefore(base, head.firstChild);
+        } else {
+          head.appendChild(base);
+        }
+      }
+      
+      // Store for JavaScript use
+      window.__BASE_PATH__ = basePath;
+      window.__IS_PRODUCTION__ = isProduction;
+    })();
+  </script>
+  
+  <!-- Resources use relative paths - they resolve via base href set above -->
+  <!-- Base href is set to /trading/ for production or /frontend/ for development -->
+  <!-- This ensures correct path resolution regardless of environment -->
+  <link href="css/tailwind.css" rel="stylesheet">
+  <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
+  <script src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="node_modules/preline/dist/preline.js"></script>
+  
+  <style>
+    /* Ensure full height layout */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    
+    canvas {
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+    #chart {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1e3a8a 100%);
+    }
+    
+    /* Mobile Menu Overlay - Modern Material Design */
+    #mobileMenuOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    #mobileMenuOverlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    #mobileMenuPanel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 90%;
+      max-width: 400px;
+      background: #1e293b;
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    #mobileMenuPanel.active {
+      transform: translateX(0);
+    }
+    
+    /* Navigation active state for sidebar */
+    #hs-sidebar-offcanvas .nav-item.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+    
+    #hs-sidebar-offcanvas .nav-item.active.dark {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    /* Sidebar - always visible on desktop, overlay on mobile */
+    #hs-sidebar-offcanvas {
+      display: flex;
+      flex-shrink: 0;
+      width: 16rem;
+      height: 100%;
+      position: relative;
+      z-index: auto;
+    }
+    
+    /* Ensure sidebar stays in normal flow on desktop */
+    @media (min-width: 1024px) {
+      #hs-sidebar-offcanvas {
+        position: relative;
+        z-index: auto;
+        transform: none;
+        display: flex !important;
+      }
+    }
+    
+    /* Mobile sidebar as overlay */
+    @media (max-width: 1023px) {
+      #hs-sidebar-offcanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 9999;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        display: none;
+      }
+      
+      #hs-sidebar-offcanvas.mobile-open {
+        display: flex;
+        transform: translateX(0);
+      }
+      
+      /* Mobile menu overlay backdrop */
+      #mobileMenuOverlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+      }
+      
+      #mobileMenuOverlay.active {
+        display: block;
+      }
+    }
+    
+    /* Hide old mobile menu elements */
+    @media (min-width: 1024px) {
+      #mobileMenuOverlay,
+      #mobileMenuPanel {
+        display: none !important;
+      }
+    }
+    
+    /* Smooth scrolling for menu */
+    #mobileMenuPanel {
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #1e293b;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* Navigation Active State */
+    .nav-item.active,
+    .mobile-nav-item.active {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+
+    .nav-item.active:hover,
+    .mobile-nav-item.active:hover {
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+
+    /* Dark mode active state */
+    .dark .nav-item.active {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+
+    .dark .nav-item.active:hover {
+      background-color: rgba(59, 130, 246, 0.25);
+    }
+
+    /* Page Content Transitions */
+    .page-content {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Ensure charts page is visible and takes full height */
+    #page-charts {
+      min-height: 100%;
+      display: flex;
+    }
+    
+    #page-charts.hidden {
+      display: none !important;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 antialiased h-full overflow-hidden">
+  <!-- Navigation Toggle -->
+  <div class="lg:hidden fixed top-4 start-4 z-50">
+    <button type="button" id="mobileMenuToggle" class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-start bg-gray-800 border border-gray-800 text-white text-sm font-medium rounded-lg shadow-2xs align-middle hover:bg-gray-950 focus:outline-hidden focus:bg-gray-900 dark:bg-white dark:text-neutral-800 dark:hover:bg-neutral-200 dark:focus:bg-neutral-200" aria-label="Toggle navigation">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+      Menu
+    </button>
+  </div>
+  <!-- End Navigation Toggle -->
+  
+  <!-- Mobile Menu Overlay Backdrop -->
+  <div id="mobileMenuOverlay" class="lg:hidden"></div>
+  
+  <!-- Mobile Menu Panel (Slide-in from right) - Keep for backward compatibility -->
+  <div id="mobileMenuPanel" class="lg:hidden">
+    <!-- Mobile Menu Header -->
+    <div class="gradient-bg px-6 py-6 border-b border-blue-700/50 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex-shrink-0">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-white">Prime Tetration</h1>
+            <p class="text-sm text-blue-100">Trading Projections</p>
+          </div>
+        </div>
+        <button id="mobileMenuCloseBtn" type="button" aria-label="Close menu" class="p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Mobile Navigation Menu -->
+    <div class="px-4 py-4 border-b border-gray-700">
+      <nav class="space-y-2">
+        <a href="#" data-page="dashboard" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+          </svg>
+          <span class="font-medium">Dashboard</span>
+        </a>
+        <a href="#" data-page="charts" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer active">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <span class="font-medium">Charts</span>
+        </a>
+        <a href="#" data-page="settings" class="mobile-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span class="font-medium">Settings</span>
+        </a>
+      </nav>
+    </div>
+    
+    <!-- Mobile Menu Content (Same as sidebar but optimized for mobile) -->
+    <div class="p-6 space-y-6">
+      <!-- Stock Symbol Section -->
+      <div>
+        <label for="tickerMobile" class="block text-sm font-semibold text-gray-300 mb-3">
+          Stock Symbol
+        </label>
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <input type="text" id="tickerMobile" value="AAPL" placeholder="Enter symbol (e.g., AAPL, TSLA)" 
+              class="py-3 px-4 block w-full border-gray-600 rounded-lg text-base focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
+            <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <button id="searchStockBtnMobile" type="button" 
+            class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white active:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 active:shadow-blue-500/30 touch-manipulation"
+            title="Search Stock">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stock Info Section (Mobile) -->
+      <div id="stockInfoMobile" class="hidden">
+        <div class="border border-gray-600 rounded-lg p-4 bg-gray-700/30 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span id="stockSymbolMobile" class="text-lg font-bold text-white">-</span>
+                <span id="stockNameMobile" class="text-xs text-gray-400">-</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="stockPriceMobile" class="text-xl font-semibold text-white">$0.00</span>
+                <span id="stockChangeMobile" class="text-sm font-medium">-</span>
+                <span id="stockChangePercentMobile" class="text-sm font-medium">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-3 border-t border-gray-600">
+            <div class="flex flex-col">
+              <span class="text-xs text-gray-400 mb-1">Previous Close</span>
+              <span id="stockPreviousCloseMobile" class="text-sm text-white font-medium">-</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs text-gray-400 mb-1">Open</span>
+              <span id="stockOpenMobile" class="text-sm text-white font-medium">-</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs text-gray-400 mb-1">High</span>
+              <span id="stockHighMobile" class="text-sm text-white font-medium">-</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs text-gray-400 mb-1">Low</span>
+              <span id="stockLowMobile" class="text-sm text-white font-medium">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projection Settings -->
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
+          <h2 class="text-base font-semibold text-gray-200">Projection Settings</h2>
+        </div>
+        
+        <div class="space-y-5">
+          <!-- Prime Depth -->
+          <div>
+            <label for="primeDepthInputMobile" class="block text-sm font-medium text-gray-400 mb-3">
+              Prime Depth
+            </label>
+            <div class="relative">
+              <input type="number" id="primeDepthInputMobile" value="31" min="11" max="281" step="1" 
+                class="py-3 px-4 block w-full border-gray-600 rounded-lg text-base focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
+                placeholder="Enter prime (11-281)">
+              <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500 text-center">
+              Selected: <span class="text-blue-400 font-semibold" id="depthPrimeLabelMobile">31</span>
+            </div>
+          </div>
+
+          <!-- Fixed Settings (Combined) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-3">
+              Fixed Settings
+            </label>
+            <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+              <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="flex flex-col items-center">
+                  <p class="text-xs text-gray-500 mb-1.5">Base Seed</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="baseLabelMobile">3</span>
+                </div>
+                <div class="flex flex-col items-center border-l border-r border-gray-600/50">
+                  <p class="text-xs text-gray-500 mb-1.5">Projections</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="projCountLabelMobile">12</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <p class="text-xs text-gray-500 mb-1.5">Horizon</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="horizonLabelMobile">240</span>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 text-center mt-3">All values are fixed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-4 border-t border-gray-700">
+        <div class="flex flex-col gap-3">
+          <button id="tetrationBtnMobile" type="button" 
+            class="w-full py-4 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white active:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 active:shadow-purple-500/30 touch-manipulation">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Tetration Projection
+          </button>
+          <button id="snapshotBtnMobile" type="button" 
+            class="w-full py-4 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white active:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 active:shadow-blue-500/30 touch-manipulation">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Generate Snapshot
+          </button>
+          <button id="clearBtnMobile" type="button" 
+            class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 active:bg-gray-700 active:border-gray-500 transition-all touch-manipulation">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Clear Chart
+          </button>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <div id="statusMobile" class="p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Ready. Search for a stock symbol first, then click Tetration Projection or Generate Snapshot.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oscillation Metrics (hidden by default) -->
+      <div id="oscillationMetricsMobile" class="pt-4 border-t border-gray-700 hidden">
+        <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">Oscillation Analysis</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPatternMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Entropy: <span id="entropyMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDimsMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimesMobile">-</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="flex h-screen overflow-hidden w-full">
+    <!-- Sidebar -->
+    <aside id="hs-sidebar-offcanvas" class="w-64 h-full flex flex-col bg-white border-e border-gray-200 dark:bg-neutral-800 dark:border-neutral-700 flex-shrink-0" role="complementary" aria-label="Sidebar">
+      <div class="relative flex flex-col h-full max-h-full">
+        <!-- Header -->
+        <header class="p-4 flex justify-between items-center gap-x-2">
+          <a class="flex-none font-semibold text-xl text-black focus:outline-hidden focus:opacity-80 dark:text-white" href="#" aria-label="Brand">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <div class="text-xl font-bold dark:text-white">Prime Tetration</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">Trading Projections</div>
+              </div>
+            </div>
+          </a>
+
+          <div class="lg:hidden -me-2">
+            <!-- Close Button -->
+            <button type="button" id="mobileSidebarClose" class="flex justify-center items-center gap-x-3 size-6 bg-white border border-gray-200 text-sm text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:hover:text-neutral-200 dark:focus:text-neutral-200">
+              <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <span class="sr-only">Close</span>
+            </button>
+            <!-- End Close Button -->
+          </div>
+        </header>
+        <!-- End Header -->
+
+        <!-- Body -->
+        <nav class="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+          <div class="hs-accordion-group pb-0 px-2 w-full flex flex-col flex-wrap" data-hs-accordion-always-open>
+            <ul class="space-y-1">
+              <li>
+                <a href="#" data-page="dashboard" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  Dashboard
+                </a>
+              </li>
+
+              <li>
+                <a href="#" data-page="charts" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/></svg>
+                  Charts
+                </a>
+              </li>
+
+              <li>
+                <a href="#" data-page="settings" class="nav-item flex items-center gap-x-3.5 py-2 px-2.5 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-neutral-200">
+                  <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>
+                  Settings
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+        <!-- End Body -->
+
+        <!-- User Profile Widget -->
+        <div class="border-t border-gray-200 dark:border-neutral-700 p-4 mt-auto">
+          <div class="relative">
+            <button id="userProfileBtn" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 transition-all cursor-pointer group">
+              <div class="flex-shrink-0">
+                <div id="userAvatar" class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm border border-gray-200 dark:border-neutral-700">
+                  <span id="userInitials">U</span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <div id="userName" class="text-sm font-medium text-gray-800 dark:text-white truncate">User</div>
+                <div id="userEmail" class="text-xs text-gray-500 dark:text-gray-400 truncate">user@example.com</div>
+              </div>
+              <svg class="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div id="userProfileDropdown" class="hidden absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50">
+              <div class="py-1">
+                <button id="viewProfileBtn" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                  View Profile
+                </button>
+                <button id="editProfileBtn" class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  </svg>
+                  Edit Profile
+                </button>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                <button id="logoutBtn" class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End Sidebar -->
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      <!-- Page Containers -->
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page-content hidden flex-1 flex flex-col overflow-y-auto">
+        <div class="px-6 py-6">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold text-white mb-2">Dashboard</h1>
+            <p class="text-gray-400">Overview of your trading projections and analytics</p>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Total Projections</p>
+                  <p class="text-2xl font-bold text-white">0</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Active Symbols</p>
+                  <p class="text-2xl font-bold text-white">0</p>
+                </div>
+                <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">Prime Depth</p>
+                  <p class="text-2xl font-bold text-white">31</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-400 mb-1">System Status</p>
+                  <p class="text-lg font-bold text-green-400">Active</p>
+                </div>
+                <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Recent Activity</h2>
+            <div class="space-y-3">
+              <div class="flex items-center gap-4 p-3 bg-gray-700/30 rounded-lg">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm text-gray-300">No recent activity</p>
+                  <p class="text-xs text-gray-500">Start by creating a projection in the Charts page</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Page (Current Page) -->
+      <div id="page-charts" class="page-content flex-1 flex flex-col overflow-hidden">
+      <!-- Sidebar Content (moved to top of main window) -->
+      <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
+        <div class="space-y-4">
+          <!-- Stock Symbol Section -->
+          <div class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[200px]">
+              <label for="ticker" class="block text-sm font-semibold text-gray-300 mb-2">
+                Stock Symbol
+              </label>
+              <div class="flex gap-2">
+                <div class="relative flex-1">
+                  <input type="text" id="ticker" value="AAPL" placeholder="Enter symbol (e.g., AAPL, TSLA)" 
+                    class="py-2 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
+                  <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <button id="searchStockBtn" type="button" 
+                  class="py-2 px-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
+                  title="Search Stock">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Stock Info Section (inline) -->
+            <div id="stockInfo" class="hidden">
+              <div class="border border-gray-600 rounded-lg p-3 bg-gray-700/30">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span id="stockSymbol" class="text-base font-bold text-white">-</span>
+                      <span id="stockName" class="text-xs text-gray-400">-</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span id="stockPrice" class="text-lg font-semibold text-white">$0.00</span>
+                      <span id="stockChange" class="text-sm font-medium">-</span>
+                      <span id="stockChangePercent" class="text-sm font-medium">-</span>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 pl-3 border-l border-gray-600">
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Prev Close</span>
+                      <span id="stockPreviousClose" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Open</span>
+                      <span id="stockOpen" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">High</span>
+                      <span id="stockHigh" class="text-xs text-white font-medium">-</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xs text-gray-400 mb-0.5">Low</span>
+                      <span id="stockLow" class="text-xs text-white font-medium">-</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Projection Settings and Actions (horizontal layout) -->
+          <div class="flex flex-wrap items-end gap-4">
+            <!-- Projection Settings -->
+            <div class="flex-1 min-w-[300px]">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-1 h-5 bg-blue-500 rounded-full"></div>
+                <h2 class="text-sm font-semibold text-gray-200">Projection Settings</h2>
+              </div>
+              <div class="flex gap-3">
+                <!-- Prime Depth -->
+                <div class="flex-1">
+                  <label for="primeDepthInput" class="block text-xs font-medium text-gray-400 mb-1">
+                    Prime Depth
+                  </label>
+                  <div class="relative">
+                    <input type="number" id="primeDepthInput" value="31" min="11" max="281" step="1" 
+                      class="py-2 px-3 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
+                      placeholder="Enter prime (11-281)">
+                    <div class="absolute inset-y-0 end-0 flex items-center pe-2 pointer-events-none">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 text-center">
+                    Selected: <span class="text-blue-400 font-semibold" id="depthPrimeLabel">31</span>
+                  </div>
+                </div>
+
+                <!-- Fixed Settings (Combined) -->
+                <div class="flex-1">
+                  <label class="block text-xs font-medium text-gray-400 mb-1">
+                    Fixed Settings
+                  </label>
+                  <div class="border border-gray-600 rounded-lg p-2 bg-gray-800/50">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                      <div class="flex flex-col items-center">
+                        <p class="text-xs text-gray-500 mb-0.5">Base Seed</p>
+                        <span class="text-blue-400 font-semibold text-base" id="baseLabel">3</span>
+                      </div>
+                      <div class="flex flex-col items-center border-l border-r border-gray-600/50">
+                        <p class="text-xs text-gray-500 mb-0.5">Projections</p>
+                        <span class="text-blue-400 font-semibold text-base" id="projCountLabel">12</span>
+                      </div>
+                      <div class="flex flex-col items-center">
+                        <p class="text-xs text-gray-500 mb-0.5">Horizon</p>
+                        <span class="text-blue-400 font-semibold text-base" id="horizonLabel">240</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+              <button id="tetrationBtn" type="button" 
+                class="py-2 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Tetration Projection
+              </button>
+              <button id="snapshotBtn" type="button" 
+                class="py-2 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Generate Snapshot
+              </button>
+              <button id="clearBtn" type="button" 
+                class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Clear Chart
+              </button>
+            </div>
+          </div>
+
+          <!-- Oscillation Metrics (hidden by default) -->
+          <div id="oscillationMetrics" class="hidden">
+            <h3 class="text-xs font-semibold uppercase text-gray-400 mb-2">Oscillation Analysis</h3>
+            <div class="flex flex-wrap gap-2">
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPattern">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Entropy: <span id="entropy">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDims">-</span></span>
+              </div>
+              <div class="flex items-center gap-2 p-2 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimes">-</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Chart Header -->
+      <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-white">Price Projections</h2>
+            <p class="text-sm text-gray-400 mt-0.5">Interactive chart with prime tetration analysis</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="zoomInBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Zoom In">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+              </svg>
+              Zoom In
+            </button>
+            <button id="zoomOutBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Zoom Out">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+              </svg>
+              Zoom Out
+            </button>
+            <button id="resetZoomBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Reset Zoom">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Container -->
+      <div class="flex-1 p-6 relative overflow-hidden">
+        <div class="w-full h-full bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl">
+          <div class="w-full h-full relative">
+            <canvas id="chart"></canvas>
+          </div>
+        </div>
+        
+        <!-- Chart Instructions Overlay (hidden when chart has data) -->
+        <div id="chartInstructions" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div class="text-center p-8 bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700">
+            <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-gray-300 mb-2">No Chart Data</h3>
+            <p class="text-sm text-gray-400">Enter a stock symbol and click "Generate Snapshot" to view projections</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Box (at bottom of chart) -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-gray-800/50">
+        <div id="status" class="p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Ready. Search for a stock symbol first, then click Tetration Projection or Generate Snapshot.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Information -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-gray-800/30">
+        <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">System Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">φ Dimensions: [3,7,31,12,19,5,11,13,17,23,29,31]</span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Q8 Fixed-Point Active</span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">+8 Bit Guard Truncation</span>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page-content hidden flex-1 flex flex-col overflow-y-auto">
+        <div class="px-6 py-6">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold text-white mb-2">Settings</h1>
+            <p class="text-gray-400">Configure your application preferences</p>
+          </div>
+
+          <!-- Settings Sections -->
+          <div class="space-y-6">
+            <!-- General Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">General Settings</h2>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Theme</label>
+                    <p class="text-xs text-gray-500">Choose your preferred color scheme</p>
+                  </div>
+                  <select id="themeSelect" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Auto-refresh</label>
+                    <p class="text-xs text-gray-500">Automatically update chart data</p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoRefresh" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Projection Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">Projection Settings</h2>
+              <div class="space-y-4">
+                <div>
+                  <label for="defaultPrimeDepth" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Prime Depth
+                  </label>
+                  <input type="number" id="defaultPrimeDepth" value="31" min="11" max="281" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Default value for new projections (11-281)</p>
+                </div>
+
+                <div>
+                  <label for="defaultBaseSeed" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Base Seed
+                  </label>
+                  <input type="number" id="defaultBaseSeed" value="3" min="1" max="10" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Base seed value for calculations</p>
+                </div>
+
+                <div>
+                  <label for="defaultProjections" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Projections Count
+                  </label>
+                  <input type="number" id="defaultProjections" value="12" min="1" max="50" step="1" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Number of projections to generate</p>
+                </div>
+
+                <div>
+                  <label for="defaultHorizon" class="block text-sm font-medium text-gray-300 mb-2">
+                    Default Horizon
+                  </label>
+                  <input type="number" id="defaultHorizon" value="240" min="10" max="1000" step="10" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Time horizon for projections</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- API Settings -->
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+              <h2 class="text-lg font-semibold text-white mb-4">API Configuration</h2>
+              <div class="space-y-4">
+                <div>
+                  <label for="apiEndpoint" class="block text-sm font-medium text-gray-300 mb-2">
+                    API Endpoint
+                  </label>
+                  <input type="text" id="apiEndpoint" value="http://localhost:3000" 
+                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:border-blue-500 focus:ring-blue-500">
+                  <p class="text-xs text-gray-500 mt-1">Backend API server URL</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <div>
+                    <label class="text-sm font-medium text-gray-300">Enable Caching</label>
+                    <p class="text-xs text-gray-500">Cache API responses for better performance</p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="enableCache" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end">
+              <button id="saveSettingsBtn" type="button" 
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium">
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // CRITICAL: Define fetch immediately before any other code runs
+    // Fetch polyfill for older browsers or environments where fetch is not available
+    // Use ES5 syntax for maximum compatibility
+    // This MUST run synchronously and set window.fetch before any other code executes
+    (function() {
+      'use strict';
+      // Always define fetch - if native fetch exists, use it; otherwise use polyfill
+      var nativeFetch = null;
+      try {
+        if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+          nativeFetch = window.fetch;
+        } else if (typeof fetch === 'function') {
+          nativeFetch = fetch;
+        } else if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+          nativeFetch = globalThis.fetch;
+        }
+      } catch (e) {
+        // Ignore errors during native fetch detection
+        console.warn('Error detecting native fetch:', e.message);
+      }
+      
+      // Define fetch function (polyfill or native)
+      var fetchFunction = nativeFetch || function(url, options) {
+          // Handle default parameters for older browsers
+          options = options || {};
+          url = url || '';
+          
+          return new Promise(function(resolve, reject) {
+            try {
+              var xhr = new XMLHttpRequest();
+              var method = options.method || 'GET';
+              var headers = options.headers || {};
+              
+              xhr.open(method, url, true);
+              
+              // Set headers
+              if (headers && typeof headers === 'object') {
+                for (var key in headers) {
+                  if (headers.hasOwnProperty(key)) {
+                    xhr.setRequestHeader(key, headers[key]);
+                  }
+                }
+              }
+              
+              xhr.onload = function() {
+                var response = {
+                  ok: xhr.status >= 200 && xhr.status < 300,
+                  status: xhr.status,
+                  statusText: xhr.statusText || '',
+                  headers: {},
+                  text: function() {
+                    return Promise.resolve(xhr.responseText || '');
+                  },
+                  json: function() {
+                    try {
+                      return Promise.resolve(JSON.parse(xhr.responseText || '{}'));
+                    } catch (e) {
+                      return Promise.reject(new Error('Invalid JSON response: ' + e.message));
+                    }
+                  }
+                };
+                
+                // Parse headers
+                var headerStr = xhr.getAllResponseHeaders();
+                if (headerStr) {
+                  var headerLines = headerStr.split('\r\n');
+                  for (var i = 0; i < headerLines.length; i++) {
+                    var line = headerLines[i];
+                    var parts = line.split(': ');
+                    if (parts.length === 2) {
+                      response.headers[parts[0].toLowerCase()] = parts[1];
+                    }
+                  }
+                }
+                
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve(response);
+                } else {
+                  reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+                }
+              };
+              
+              xhr.onerror = function() {
+                reject(new Error('Network error'));
+              };
+              
+              xhr.ontimeout = function() {
+                reject(new Error('Request timeout'));
+              };
+              
+              // Handle abort signal if provided
+              if (options.signal && options.signal.addEventListener) {
+                options.signal.addEventListener('abort', function() {
+                  xhr.abort();
+                  reject(new Error('Request aborted'));
+                });
+              }
+              
+              // Send request
+              if (options.body) {
+                xhr.send(options.body);
+              } else {
+                xhr.send();
+              }
+            } catch (err) {
+              reject(new Error('Fetch error: ' + err.message));
+            }
+          });
+        };
+      
+      // ALWAYS assign fetch to window and global scope
+      if (typeof window !== 'undefined') {
+        window.fetch = fetchFunction;
+      }
+      // Also set global fetch (for Node.js-like environments)
+      try {
+        if (typeof global !== 'undefined') {
+          global.fetch = fetchFunction;
+        }
+      } catch (e) {
+        // Ignore if global is not available
+      }
+      
+      // Also set it in the current scope
+      if (typeof self !== 'undefined') {
+        self.fetch = fetchFunction;
+      }
+    })();
+    
+    // CRITICAL: Verify fetch is available immediately after polyfill
+    // This will throw an error if fetch is not available, preventing further execution
+    (function() {
+      'use strict';
+      if (typeof window === 'undefined') {
+        console.error('CRITICAL: window is not defined!');
+        return;
+      }
+      
+      if (typeof window.fetch !== 'function') {
+        console.error('CRITICAL: window.fetch is not a function after polyfill initialization!');
+        console.error('window.fetch type:', typeof window.fetch);
+        // Create a minimal fetch that throws a clear error
+        window.fetch = function() {
+          throw new Error('fetch is not available - please check browser console for initialization errors');
+        };
+      } else {
+        console.log('✓ Fetch verification passed: window.fetch is available');
+      }
+    })();
+    
+    // Safe URL join utility (from PDF analysis principles)
+    // Normalizes base and path, validates URL, prevents null/undefined issues
+    function safeJoinUrl(base, path) {
+      if (!base && !path) {
+        throw new Error('API URL construction failed: both base and path are empty');
+      }
+      
+      // Normalize slashes - remove trailing slashes from base, leading slashes from path
+      const normalizedBase = (base || '').replace(/\/+$/, '');
+      const normalizedPath = (path || '').replace(/^\/+/, '');
+      
+      // Construct full URL
+      let fullUrl;
+      if (normalizedBase && normalizedPath) {
+        fullUrl = `${normalizedBase}/${normalizedPath}`;
+      } else if (normalizedBase) {
+        fullUrl = normalizedBase;
+      } else {
+        fullUrl = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+      }
+      
+      // Validate URL (for absolute URLs)
+      if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
+        try {
+          const url = new URL(fullUrl);
+          return url.toString();
+        } catch (e) {
+          console.error('Invalid URL construction', { base, path, fullUrl, error: String(e) });
+          throw new Error(`Invalid URL: ${fullUrl}`);
+        }
+      }
+      
+      // For relative URLs, just return normalized path
+      return fullUrl;
+    }
+    
+    // Detect base path for API routes (production vs development)
+    // API routes should NOT include /frontend/ - they're served from root or /trading/
+    const getBasePath = () => {
+      const path = window.location.pathname || '';
+      const hostname = window.location.hostname || '';
+      // Only add /trading prefix if we're actually on production (voynich.online) with /trading/ path
+      const isProduction = (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '') || path.includes('/trading/');
+      return isProduction ? '/trading' : '';
+    };
+    
+    // Centralized API routes (from PDF analysis principles)
+    // Automatically works with both /api/* and /trading/api/* paths
+    const apiRoutes = {
+      quote: (symbol, period = '1d') => `${getBasePath()}/api/quote?symbol=${encodeURIComponent(symbol)}&period=${period}`,
+      history: (symbol, range = '1mo', interval = '1d') => `${getBasePath()}/api/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
+      snapshot: () => `${getBasePath()}/api/snapshot`,
+      tetrationProjection: () => `${getBasePath()}/api/tetration-projection`,
+      health: () => `${getBasePath()}/api/health`
+    };
+    
+    // Enhanced API fetch with retry, error handling, and URL validation
+    // Added timeout and better error handling to prevent infinite loops
+    async function apiFetch(path, options = {}, maxRetries = 2) {
+      // Validate path is not null/undefined
+      if (!path || path === 'null' || path === 'undefined') {
+        throw new Error(`Invalid API path: ${path}`);
+      }
+      
+      // Ensure path is a string
+      const url = typeof path === 'string' ? path : String(path);
+      
+      // Validate URL before attempting fetch
+      if (!url || url.trim() === '') {
+        throw new Error('API URL is empty or invalid');
+      }
+      
+      // Add timeout to prevent hanging requests
+      const timeout = options.timeout || 10000; // 10 second timeout
+      
+      // Add default headers
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('Content-Type') && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+        headers.set('Content-Type', 'application/json');
+      }
+      
+      // Retry logic with exponential backoff
+      let attempt = 0;
+      let lastError = null;
+      
+      while (attempt < maxRetries) {
+        try {
+          const response = await window.fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+            mode: 'cors'
+          });
+          
+          // If response is OK, return it
+          if (response.ok) {
+            return response;
+          }
+          
+          // Distinguish between network errors and HTTP errors
+          const is5xx = response.status >= 500 && response.status < 600;
+          const isNetwork = response.status === 0 || !response.status;
+          const is4xx = response.status >= 400 && response.status < 500;
+          
+          // CRITICAL: Never retry on 4xx errors (client errors like 400 Bad Request)
+          // 4xx errors indicate invalid input - retrying won't help and creates spam
+          if (is4xx) {
+            const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+            }
+            console.warn('API error (4xx - not retrying)', { url, status: response.status, body: errorText.slice(0, 500) });
+            const err = new Error(errorData.error || errorData.hint || `HTTP ${response.status}: ${response.statusText}`);
+            err.status = response.status;
+            err.body = errorText;
+            err.errorData = errorData;
+            throw err;
+          }
+          
+          // Retry on 5xx or network errors only
+          if ((is5xx || isNetwork) && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250; // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // For other errors or last attempt, get error details and throw
+          const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+          console.warn('API error', { url, status: response.status, body: errorText.slice(0, 500) });
+          throw new Error(`API ${response.status} ${response.statusText} at ${url}: ${errorText.slice(0, 200)}`);
+          
+        } catch (error) {
+          lastError = error;
+          const isNetworkError = error.message.includes('Failed to fetch') || 
+                                error.name === 'TypeError' || 
+                                error.message.includes('NetworkError');
+          
+          // Retry on network errors
+          if (isNetworkError && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // If not retryable or last attempt, throw
+          if (attempt === maxRetries - 1) {
+            throw error;
+          }
+        }
+      }
+      
+      throw lastError || new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+    }
+    
+    // Legacy fetchWithRetry for backward compatibility
+    async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+      return apiFetch(url, options, maxRetries);
+    }
+    
+    // Prime depth options - expanded up to 281
+    const PRIME_STOPS = [
+      11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 
+      97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 
+      179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 
+      269, 271, 277, 281
+    ];
+    
+    // Helper functions and variables (available globally)
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status');
+    const chartInstructions = $('chartInstructions');
+    
+    // Wait for Chart.js to load
+    function waitForChart(callback) {
+      if (typeof Chart !== 'undefined') {
+        callback();
+      } else {
+        setTimeout(() => waitForChart(callback), 50);
+      }
+    }
+    
+    // Global chart variable
+    let chart;
+    // Global canvas element variable (needed for event listeners)
+    let ctx;
+    
+    waitForChart(() => {
+      // Check if Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+        document.body.innerHTML = '<div class="p-20 text-red-500">Error: Chart.js library failed to load. Please check that the server is running and node_modules are accessible.</div>';
+        throw new Error('Chart.js not loaded');
+      }
+      
+      // Wait for DOM to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeChart);
+      } else {
+        // DOM is already ready, but wait a tick to ensure canvas is rendered
+        setTimeout(initializeChart, 0);
+      }
+    });
+    
+    function initializeChart() {
+      ctx = document.getElementById('chart');
+      if (!ctx) {
+        console.error('Canvas element not found, retrying...');
+        setTimeout(initializeChart, 100);
+        return;
+      }
+    
+    // Register zoom plugin if available
+    let zoomPluginAvailable = false;
+    try {
+      const zoomPlugin = window.ChartZoom || ChartZoom || (window.Chart && window.Chart.plugins && window.Chart.plugins.zoom);
+      
+      if (zoomPlugin) {
+        Chart.register(zoomPlugin);
+        zoomPluginAvailable = true;
+        console.log('Zoom plugin registered successfully');
+      } else {
+        console.warn('Zoom plugin not found. Panning will not work.');
+      }
+    } catch (e) {
+      console.error('Error registering zoom plugin:', e);
+    }
+    
+    chart = new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { 
+          mode: 'nearest', 
+          intersect: false,
+          includeInvisible: true
+        },
+        onHover: (event, activeElements) => {
+          if (event.native && event.native.target) {
+            event.native.target.style.cursor = 'grab';
+          }
+        },
+        scales: {
+          x: { 
+            grid: { color: '#374151' }, 
+            ticks: { color: '#9ca3af', font: { size: 11 } },
+            border: { color: '#374151' }
+          },
+          y: { 
+            grid: { color: '#374151' }, 
+            ticks: { color: '#9ca3af', font: { size: 11 } },
+            border: { color: '#374151' },
+            beginAtZero: false,
+            min: undefined,
+            max: undefined
+          }
+        },
+        plugins: {
+          legend: { 
+            labels: { 
+              color: '#d1d5db',
+              font: { size: 12 },
+              usePointStyle: true,
+              padding: 12
+            },
+            position: 'top',
+            align: 'end'
+          },
+          zoom: zoomPluginAvailable ? {
+            limits: {
+              x: {min: 'original', max: 'original'},
+              y: {min: 'original', max: 'original'}
+            },
+            pan: {
+              enabled: true,
+              mode: 'xy',
+              modifierKey: null,
+              threshold: 5,
+            },
+            zoom: {
+              wheel: {
+                enabled: true,
+                modifierKey: null,
+                speed: 0.1,
+              },
+              pinch: {
+                enabled: true
+              },
+              drag: {
+                enabled: false,
+              },
+              mode: 'xy',
+            }
+          } : {}
+        }
+      }
+    });
+    
+    // Attach pan listeners after chart is created
+    attachPanListeners();
+    } // End of initializeChart function
+
+    // Track last projection method used
+    let lastProjectionMethod = null; // 'tetration' or 'snapshot'
+    let updateTimeout = null;
+    let selectedPrimeIndex = 6; // Default to 31 (index 6 in expanded array: 11,13,17,19,23,29,31)
+    const selectedProjCount = 12; // Fixed: 12 projections
+    const selectedHorizon = 240; // Fixed: 240 steps
+    const selectedBase = 3; // Fixed: 3 base seed
+    
+    // Horizon options
+    const HORIZON_OPTIONS = [50, 100, 150, 200, 240, 300, 400, 500, 750, 1000];
+    
+    // Base seed options
+    const BASE_OPTIONS = [
+      { value: 3, label: '3', description: 'Preferred - Recommended' },
+      { value: 2, label: '2', description: 'Enigma-style' }
+    ];
+
+    // Update prime depth from input value
+    function updatePrimeDepthFromInput(inputValue, source) {
+      const primeValue = parseInt(inputValue, 10);
+      
+      // Validate: must be a valid prime from PRIME_STOPS
+      const primeIndex = PRIME_STOPS.indexOf(primeValue);
+      if (primeIndex === -1) {
+        // Find closest valid prime
+        let closestIndex = 0;
+        let minDiff = Math.abs(PRIME_STOPS[0] - primeValue);
+        for (let i = 1; i < PRIME_STOPS.length; i++) {
+          const diff = Math.abs(PRIME_STOPS[i] - primeValue);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = i;
+          }
+        }
+        selectedPrimeIndex = closestIndex;
+        const closestPrime = PRIME_STOPS[closestIndex];
+        
+        // Update inputs with closest valid prime
+        if ($('primeDepthInput')) $('primeDepthInput').value = closestPrime;
+        if ($('primeDepthInputMobile')) $('primeDepthInputMobile').value = closestPrime;
+        
+        // Update labels
+        if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = closestPrime;
+        if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = closestPrime;
+        
+        return;
+      }
+      
+      // Valid prime found
+      selectedPrimeIndex = primeIndex;
+      
+      // Sync inputs
+      if (source !== 'desktop' && $('primeDepthInput')) {
+        $('primeDepthInput').value = primeValue;
+      }
+      if (source !== 'mobile' && $('primeDepthInputMobile')) {
+        $('primeDepthInputMobile').value = primeValue;
+      }
+      
+      // Update labels
+      if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = primeValue;
+      if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = primeValue;
+      
+      // Trigger auto-update if chart has data
+      debouncedAutoUpdate();
+    }
+    
+    // Initialize prime depth input handlers
+    function initializePrimeDepthInputs() {
+      const inputDesktop = $('primeDepthInput');
+      const inputMobile = $('primeDepthInputMobile');
+      
+      // Desktop input handler
+      if (inputDesktop) {
+        inputDesktop.addEventListener('input', (e) => {
+          updatePrimeDepthFromInput(e.target.value, 'desktop');
+        });
+        
+        inputDesktop.addEventListener('blur', (e) => {
+          // On blur, ensure value is valid
+          const value = parseInt(e.target.value, 10);
+          if (isNaN(value) || PRIME_STOPS.indexOf(value) === -1) {
+            // Reset to current selected prime
+            e.target.value = PRIME_STOPS[selectedPrimeIndex];
+          }
+        });
+      }
+      
+      // Mobile input handler
+      if (inputMobile) {
+        inputMobile.addEventListener('input', (e) => {
+          updatePrimeDepthFromInput(e.target.value, 'mobile');
+        });
+        
+        inputMobile.addEventListener('blur', (e) => {
+          // On blur, ensure value is valid
+          const value = parseInt(e.target.value, 10);
+          if (isNaN(value) || PRIME_STOPS.indexOf(value) === -1) {
+            // Reset to current selected prime
+            e.target.value = PRIME_STOPS[selectedPrimeIndex];
+          }
+        });
+      }
+      
+      // Set initial values
+      const initialPrime = PRIME_STOPS[selectedPrimeIndex];
+      if (inputDesktop) inputDesktop.value = initialPrime;
+      if (inputMobile) inputMobile.value = initialPrime;
+      if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = initialPrime;
+      if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = initialPrime;
+    }
+
+    // Set fixed values labels (no toggles needed)
+    function setFixedValueLabels() {
+      if ($('baseLabel')) $('baseLabel').textContent = selectedBase;
+      if ($('baseLabelMobile')) $('baseLabelMobile').textContent = selectedBase;
+      if ($('projCountLabel')) $('projCountLabel').textContent = selectedProjCount;
+      if ($('projCountLabelMobile')) $('projCountLabelMobile').textContent = selectedProjCount;
+      if ($('horizonLabel')) $('horizonLabel').textContent = selectedHorizon;
+      if ($('horizonLabelMobile')) $('horizonLabelMobile').textContent = selectedHorizon;
+    }
+
+    // Mobile Menu Functionality
+    function openMobileMenu() {
+      const overlay = document.getElementById('mobileMenuOverlay');
+      const panel = document.getElementById('mobileMenuPanel');
+      const btn = document.getElementById('mobileMenuBtn');
+      if (overlay && panel && btn) {
+        overlay.classList.add('active');
+        panel.classList.add('active');
+        btn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+    
+    function closeMobileMenu() {
+      const overlay = document.getElementById('mobileMenuOverlay');
+      const panel = document.getElementById('mobileMenuPanel');
+      const btn = document.getElementById('mobileMenuBtn');
+      if (overlay && panel && btn) {
+        overlay.classList.remove('active');
+        panel.classList.remove('active');
+        btn.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+    
+    // Mobile menu event listeners
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenuCloseBtn = document.getElementById('mobileMenuCloseBtn');
+    const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+    
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', openMobileMenu);
+    }
+    if (mobileMenuCloseBtn) {
+      mobileMenuCloseBtn.addEventListener('click', closeMobileMenu);
+    }
+    if (mobileMenuOverlay) {
+      mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+    }
+
+    // Sidebar mobile toggle functionality
+    function openSidebar() {
+      const sidebar = document.getElementById('hs-sidebar-offcanvas');
+      const overlay = document.getElementById('mobileMenuOverlay');
+      if (sidebar) {
+        sidebar.classList.add('mobile-open');
+        sidebar.style.display = 'flex';
+      }
+      if (overlay) {
+        overlay.classList.add('active');
+      }
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('hs-sidebar-offcanvas');
+      const overlay = document.getElementById('mobileMenuOverlay');
+      if (sidebar) {
+        sidebar.classList.remove('mobile-open');
+        sidebar.style.display = 'none';
+      }
+      if (overlay) {
+        overlay.classList.remove('active');
+      }
+      document.body.style.overflow = '';
+    }
+
+    // Sidebar toggle event listeners
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileSidebarClose = document.getElementById('mobileSidebarClose');
+    const sidebarOverlay = document.getElementById('mobileMenuOverlay');
+
+    if (mobileMenuToggle) {
+      mobileMenuToggle.addEventListener('click', openSidebar);
+    }
+    if (mobileSidebarClose) {
+      mobileSidebarClose.addEventListener('click', closeSidebar);
+    }
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+
+    // Navigation System
+    function navigateToPage(pageName) {
+      // Hide all pages
+      const pages = document.querySelectorAll('.page-content');
+      pages.forEach(page => {
+        page.classList.add('hidden');
+      });
+
+      // Show selected page
+      const targetPage = document.getElementById(`page-${pageName}`);
+      if (targetPage) {
+        targetPage.classList.remove('hidden');
+      }
+
+      // Update navigation active states
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => {
+        item.classList.remove('active', 'bg-blue-600', 'text-white', 'bg-gray-100', 'dark:bg-neutral-700');
+        if (item.getAttribute('data-page') === pageName) {
+          item.classList.add('active', 'bg-gray-100', 'dark:bg-neutral-700');
+          // Update text color for active state
+          if (document.documentElement.classList.contains('dark')) {
+            item.classList.add('text-blue-400');
+            item.classList.remove('text-gray-800', 'dark:text-neutral-200');
+          } else {
+            item.classList.add('text-blue-600');
+            item.classList.remove('text-gray-800', 'dark:text-neutral-200');
+          }
+        } else {
+          // Reset to default colors
+          if (document.documentElement.classList.contains('dark')) {
+            item.classList.add('dark:text-neutral-200');
+            item.classList.remove('text-blue-400', 'text-blue-600');
+          } else {
+            item.classList.add('text-gray-800');
+            item.classList.remove('text-blue-400', 'text-blue-600');
+          }
+        }
+      });
+
+      // Update mobile menu navigation active states
+      const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+      mobileNavItems.forEach(item => {
+        item.classList.remove('active', 'bg-blue-600', 'text-white');
+        item.classList.add('text-gray-300');
+        if (item.getAttribute('data-page') === pageName) {
+          item.classList.add('active', 'bg-blue-600', 'text-white');
+          item.classList.remove('text-gray-300');
+        }
+      });
+
+      // Close mobile menu after navigation
+      closeMobileMenu();
+      
+      // Close sidebar on mobile after navigation
+      if (window.innerWidth < 1024) {
+        closeSidebar();
+      }
+    }
+
+    // Initialize navigation
+    function initializeNavigation() {
+      // Desktop sidebar navigation
+      const desktopNavItems = document.querySelectorAll('.nav-item');
+      desktopNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          const pageName = item.getAttribute('data-page');
+          if (pageName) {
+            navigateToPage(pageName);
+            // Close sidebar on mobile after navigation
+            if (window.innerWidth < 1024) {
+              closeSidebar();
+            }
+          }
+        });
+      });
+
+      // Mobile menu navigation
+      const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+      mobileNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          const pageName = item.getAttribute('data-page');
+          if (pageName) {
+            navigateToPage(pageName);
+          }
+        });
+      });
+
+      // Initialize to Charts page by default
+      navigateToPage('charts');
+    }
+
+    // Initialize navigation on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeNavigation);
+    } else {
+      initializeNavigation();
+    }
+
+    // Settings Save Handler
+    function initializeSettings() {
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+      if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+          // Get settings values
+          const theme = document.getElementById('themeSelect')?.value || 'dark';
+          const autoRefresh = document.getElementById('autoRefresh')?.checked || false;
+          const defaultPrimeDepth = document.getElementById('defaultPrimeDepth')?.value || '31';
+          const defaultBaseSeed = document.getElementById('defaultBaseSeed')?.value || '3';
+          const defaultProjections = document.getElementById('defaultProjections')?.value || '12';
+          const defaultHorizon = document.getElementById('defaultHorizon')?.value || '240';
+          const apiEndpoint = document.getElementById('apiEndpoint')?.value || 'http://localhost:3000';
+          const enableCache = document.getElementById('enableCache')?.checked || true;
+
+          // Save to localStorage
+          const settings = {
+            theme,
+            autoRefresh,
+            defaultPrimeDepth,
+            defaultBaseSeed,
+            defaultProjections,
+            defaultHorizon,
+            apiEndpoint,
+            enableCache
+          };
+          localStorage.setItem('appSettings', JSON.stringify(settings));
+
+          // Show success message
+          const btn = saveSettingsBtn;
+          const originalText = btn.textContent;
+          btn.textContent = 'Saved!';
+          btn.classList.add('bg-green-600');
+          btn.classList.remove('bg-blue-600');
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('bg-green-600');
+            btn.classList.add('bg-blue-600');
+          }, 2000);
+        });
+      }
+
+      // Load saved settings
+      const savedSettings = localStorage.getItem('appSettings');
+      if (savedSettings) {
+        try {
+          const settings = JSON.parse(savedSettings);
+          if (settings.theme && document.getElementById('themeSelect')) {
+            document.getElementById('themeSelect').value = settings.theme;
+          }
+          if (settings.autoRefresh !== undefined && document.getElementById('autoRefresh')) {
+            document.getElementById('autoRefresh').checked = settings.autoRefresh;
+          }
+          if (settings.defaultPrimeDepth && document.getElementById('defaultPrimeDepth')) {
+            document.getElementById('defaultPrimeDepth').value = settings.defaultPrimeDepth;
+          }
+          if (settings.defaultBaseSeed && document.getElementById('defaultBaseSeed')) {
+            document.getElementById('defaultBaseSeed').value = settings.defaultBaseSeed;
+          }
+          if (settings.defaultProjections && document.getElementById('defaultProjections')) {
+            document.getElementById('defaultProjections').value = settings.defaultProjections;
+          }
+          if (settings.defaultHorizon && document.getElementById('defaultHorizon')) {
+            document.getElementById('defaultHorizon').value = settings.defaultHorizon;
+          }
+          if (settings.apiEndpoint && document.getElementById('apiEndpoint')) {
+            document.getElementById('apiEndpoint').value = settings.apiEndpoint;
+          }
+          if (settings.enableCache !== undefined && document.getElementById('enableCache')) {
+            document.getElementById('enableCache').checked = settings.enableCache;
+          }
+        } catch (e) {
+          console.warn('Failed to load settings:', e);
+        }
+      }
+    }
+
+    // Initialize settings on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeSettings);
+    } else {
+      initializeSettings();
+    }
+    
+    // Function to search for stock symbol
+    // Prevent multiple simultaneous searches
+    let isSearching = false;
+    
+    async function searchStock() {
+      // Prevent concurrent searches
+      if (isSearching) {
+        console.log('Search already in progress, ignoring duplicate request');
+        return;
+      }
+      
+      const symbol = getSymbol();
+      if (!symbol || symbol.trim().length === 0) {
+        updateStatus(
+          '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><div><div class="font-medium text-yellow-300">Please enter a stock symbol</div><div class="text-xs text-yellow-400/80 mt-1">Enter a valid stock symbol (e.g., AAPL, TSLA, MSFT)</div></div></div>',
+          'p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg text-sm text-yellow-300 min-h-[60px] flex items-center'
+        );
+        return;
+      }
+      
+      const normalizedSymbol = symbol.trim().toUpperCase();
+      
+      // Validate symbol format
+      const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+      if (!symbolPattern.test(normalizedSymbol)) {
+        updateStatus(
+          '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><div><div class="font-medium text-yellow-300">Invalid symbol format</div><div class="text-xs text-yellow-400/80 mt-1">Use 1-10 alphanumeric characters starting with a letter (e.g., AAPL, MSFT, BRK.B)</div></div></div>',
+          'p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg text-sm text-yellow-300 min-h-[60px] flex items-center'
+        );
+        return;
+      }
+      
+      isSearching = true;
+      
+      // Update status to show loading
+      updateStatus(
+        '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div><span>Searching for stock symbol...</span></div>',
+        'p-4 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300 min-h-[60px] flex items-center'
+      );
+      
+      try {
+        // Fetch and display stock info with timeout
+        await Promise.race([
+          fetchAndDisplayStockInfo(normalizedSymbol),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 15000))
+        ]);
+        
+        // Update status to show success
+        updateStatus(
+          '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-green-300">Stock found!</div><div class="text-xs text-green-400/80 mt-1">Stock information displayed. You can now run Tetration Projection or Generate Snapshot.</div></div></div>',
+          'p-4 bg-green-900/20 border border-green-700 rounded-lg text-sm text-green-300 min-h-[60px] flex items-center'
+        );
+        
+        // Update current symbol
+        currentSymbol = normalizedSymbol;
+      } catch (err) {
+        console.error('Stock search error:', err);
+        const errorMsg = err.message || 'Unable to find stock symbol. Please check the symbol and try again.';
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Search failed</div><div class="text-xs text-red-400/80 mt-1">${errorMsg}</div></div></div>`,
+          'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
+        );
+      } finally {
+        // Always reset searching flag
+        isSearching = false;
+      }
+    }
+    
+    // Sync mobile and desktop inputs
+    function syncInputs() {
+      const tickerDesktop = $('ticker');
+      const tickerMobile = $('tickerMobile');
+      if (tickerDesktop && tickerMobile) {
+        tickerDesktop.addEventListener('input', () => {
+          tickerMobile.value = tickerDesktop.value;
+        });
+        tickerDesktop.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            searchStock();
+          }
+        });
+        
+        tickerMobile.addEventListener('input', () => {
+          tickerDesktop.value = tickerMobile.value;
+        });
+        tickerMobile.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            searchStock();
+          }
+        });
+      }
+      
+      // Add search button event listeners
+      const searchBtnDesktop = $('searchStockBtn');
+      const searchBtnMobile = $('searchStockBtnMobile');
+      
+      if (searchBtnDesktop) {
+        searchBtnDesktop.addEventListener('click', searchStock);
+      }
+      
+      if (searchBtnMobile) {
+        searchBtnMobile.addEventListener('click', () => {
+          searchStock();
+          closeMobileMenu();
+        });
+      }
+    }
+    
+    // Initialize mobile toggles (no longer needed for prime depth - now using input)
+    function initializeMobileToggles() {
+      // Mobile toggles removed - prime depth now uses input field
+    }
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initializePrimeDepthInputs();
+        initializeMobileToggles();
+        setFixedValueLabels();
+        syncInputs();
+        // Initialize current symbol
+        currentSymbol = getSymbol();
+        // Fetch stock info for initial symbol
+        if (currentSymbol) {
+          fetchAndDisplayStockInfo(currentSymbol).catch(err => {
+            console.warn('Failed to fetch initial stock info:', err);
+          });
+        }
+      });
+    } else {
+      initializePrimeDepthInputs();
+      initializeMobileToggles();
+      setFixedValueLabels();
+      syncInputs();
+      // Initialize current symbol
+      currentSymbol = getSymbol();
+      // Fetch stock info for initial symbol
+      if (currentSymbol) {
+        fetchAndDisplayStockInfo(currentSymbol).catch(err => {
+          console.warn('Failed to fetch initial stock info:', err);
+        });
+      }
+    }
+
+    // Debounce function to prevent too many rapid updates
+    function debounce(func, wait) {
+      return function(...args) {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // Auto-update chart when settings change (if chart has data)
+    function autoUpdateChart() {
+      // Only auto-update if chart already has data
+      if (!chart.data.labels || chart.data.labels.length === 0) {
+        return;
+      }
+
+      // Only update if we have a symbol
+      const symbol = getSymbol();
+      if (!symbol) {
+        return;
+      }
+
+      // Use the last projection method that was used
+      if (lastProjectionMethod === 'tetration') {
+        tetrationProjection();
+      } else if (lastProjectionMethod === 'snapshot') {
+        snapshot();
+      }
+    }
+
+    // Debounced auto-update (500ms delay)
+    const debouncedAutoUpdate = debounce(autoUpdateChart, 500);
+
+    // Fixed values: base=3, count=12, horizon=240 (no toggles needed)
+
+    function color(i, alpha = 0.9) {
+      const hues = [210, 0, 40, 90, 140, 260, 300, 20, 170, 200, 280, 320, 45];
+      const h = hues[i % hues.length];
+      return `hsla(${h}, 85%, 60%, ${alpha})`;
+    }
+
+    function fromQ8(q8) { return q8 / 256.0; }
+
+    async function tetrationProjection() {
+      try {
+        // Check if symbol changed and reload if needed
+        if (checkSymbolChange()) {
+          return; // Page will reload
+        }
+        
+        lastProjectionMethod = 'tetration';
+        updateStatus(
+          '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"></div><span>Running tetration tower analysis with oscillation tracking...</span></div>',
+          'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center'
+        );
+        
+        let symbol = getSymbol();
+        
+        // Fetch and display stock info
+        fetchAndDisplayStockInfo(symbol).catch(err => console.warn('Stock info fetch error:', err));
+        
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
+        }
+        
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
+        const base = selectedBase;
+        const horizon = selectedHorizon;
+        const beta = 0.01; // Default beta value
+        const count = selectedProjCount;
+        const depthPrime = PRIME_STOPS[selectedPrimeIndex];
+
+        // Use centralized API routes (from PDF analysis principles)
+        let points = [];
+        let baseLabels = [];
+        try {
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
+          }
+          const hist = await histResp.json();
+          if (hist.error) {
+            throw new Error(hist.error);
+          }
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
+          baseLabels = timestamps.map(ts => {
+            try {
+              return new Date(ts * 1000).toLocaleDateString();
+            } catch (e) {
+              return ts.toString();
+            }
+          });
+          if (points.length === 0) {
+            points = [];
+            baseLabels = [];
+          }
+        } catch (histErr) {
+          console.warn('Could not fetch history:', histErr);
+          points = [];
+          baseLabels = [];
+        }
+
+        // Try multiple API paths as fallback
+        const tetrationPaths = [
+          `/api/tetration-projection`,
+          `/trading/api/tetration-projection`
+        ];
+        
+        let tetrationResp = null;
+        let lastTetrationError = null;
+        let lastTetrationUrl = null;
+        
+        for (const tetrationUrl of tetrationPaths) {
+          lastTetrationUrl = tetrationUrl; // Store for error logging
+          try {
+            console.log('Trying tetration URL:', tetrationUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            tetrationResp = await window.fetch(tetrationUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            });
+            
+            console.log('Tetration response status:', tetrationResp.status, tetrationResp.statusText);
+            
+            if (tetrationResp.ok) {
+              console.log('Successfully fetched from:', tetrationUrl);
+              break; // Success, exit loop
+            } else if (tetrationResp.status === 404) {
+              console.warn('404 from:', tetrationUrl, '- trying next path...');
+              lastTetrationError = `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', tetrationUrl, fetchErr.message);
+            lastTetrationError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!tetrationResp || !tetrationResp.ok) {
+          const errorText = await tetrationResp?.text().catch(() => tetrationResp?.statusText || lastTetrationError || 'Unknown error');
+          console.error('Tetration error after trying all paths:', {
+            status: tetrationResp?.status,
+            statusText: tetrationResp?.statusText,
+            errorText: errorText,
+            url: lastTetrationUrl || 'Unknown URL'
+          });
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${tetrationResp?.status || 'Network'}: ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}` };
+          }
+          // Prefer details field, then error field, then message field
+          const serverError = errorData.details || errorData.error || errorData.message;
+          throw new Error(serverError || `Server error (${tetrationResp?.status || 'Network'}): ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}`);
+        }
+        
+        const tetration = await tetrationResp.json();
+        if (tetration.error) throw new Error(tetration.error);
+
+        const lastPrice = fromQ8(tetration.lastPriceQ8);
+        const labels = [...baseLabels];
+        for (let i = 1; i <= horizon; i++) labels.push(`+${i}`);
+
+        const datasets = [];
+
+        if (points.length > 0) {
+          datasets.push({
+            label: `${symbol} (history)`,
+            data: [
+              ...points.slice(-Math.min(60, points.length)),
+              ...Array(horizon).fill(null)
+            ],
+            borderColor: '#9ea7bd',
+            backgroundColor: '#9ea7bd',
+            borderWidth: 1.5,
+            pointRadius: 0
+          });
+        }
+
+        const lastSegment = Array(horizon).fill(lastPrice);
+        datasets.push({
+          label: 'Last price',
+          data: [
+            ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+            ...lastSegment
+          ],
+          borderDash: [4, 4],
+          borderColor: 'rgba(255,255,255,0.35)',
+          backgroundColor: 'rgba(255,255,255,0.35)',
+          pointRadius: 0
+        });
+
+        if (!tetration.lines || tetration.lines.length === 0) {
+          throw new Error('No projection lines returned from API');
+        }
+        
+        tetration.lines.forEach((line, i) => {
+          if (!line.pointsQ8 || !Array.isArray(line.pointsQ8)) {
+            console.warn(`Line ${i} missing pointsQ8 array`);
+            return;
+          }
+          const proj = line.pointsQ8.map(fromQ8);
+          const heightLabel = line.towerHeight ? ` (H${line.towerHeight})` : '';
+          const towerLabel = line.tower && Array.isArray(line.tower) 
+            ? `Tower ${line.tower.slice(0, 3).join('-')}${heightLabel}`
+            : `Tower ${i + 1}${heightLabel}`;
+          datasets.push({
+            label: towerLabel,
+            data: [
+              ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+              ...proj
+            ],
+            borderColor: color(i),
+            backgroundColor: color(i, 0.18),
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0
+          });
+        });
+
+        // Ensure labels match data length
+        const expectedDataLength = datasets[0]?.data?.length || horizon;
+        if (labels.length !== expectedDataLength) {
+          // If labels are shorter, pad with additional horizon labels
+          while (labels.length < expectedDataLength) {
+            labels.push(`+${labels.length + 1}`);
+          }
+          // If labels are longer, truncate
+          labels.splice(expectedDataLength);
+        }
+        
+        if (!chart) {
+          throw new Error('Chart not initialized');
+        }
+        
+        chart.data.labels = labels;
+        chart.data.datasets = datasets;
+        chart.update('none');
+        
+        // Hide instructions overlay
+        const chartInstructions = $('chartInstructions');
+        if (chartInstructions) {
+          chartInstructions.style.display = 'none';
+        }
+
+        // Display oscillation metrics
+        const oscMetrics = $('oscillationMetrics');
+        const oscMetricsMobile = $('oscillationMetricsMobile');
+        if (tetration.oscillationAnalysis) {
+          const osc = tetration.oscillationAnalysis;
+          const quadPattern = osc.quadraticPattern.toFixed(6);
+          const entropyVal = osc.entropy.toFixed(4);
+          const anchorDims = osc.anchors.map(a => `φ${a.dimension}(${a.phi})`).join(', ') || 'None';
+          const orbitalPrimes = tetration.orbitalPrimes ? tetration.orbitalPrimes.join(', ') : 'None';
+          
+          // Update desktop
+          if ($('quadraticPattern')) $('quadraticPattern').textContent = quadPattern;
+          if ($('entropy')) $('entropy').textContent = entropyVal;
+          if ($('anchorDims')) $('anchorDims').textContent = anchorDims;
+          if ($('orbitalPrimes')) $('orbitalPrimes').textContent = orbitalPrimes;
+          if (oscMetrics) oscMetrics.classList.remove('hidden');
+          
+          // Update mobile
+          if ($('quadraticPatternMobile')) $('quadraticPatternMobile').textContent = quadPattern;
+          if ($('entropyMobile')) $('entropyMobile').textContent = entropyVal;
+          if ($('anchorDimsMobile')) $('anchorDimsMobile').textContent = anchorDims;
+          if ($('orbitalPrimesMobile')) $('orbitalPrimesMobile').textContent = orbitalPrimes;
+          if (oscMetricsMobile) oscMetricsMobile.classList.remove('hidden');
+        }
+
+        const anchorInfo = tetration.oscillationAnalysis?.anchors.map(a => `φ${a.dimension}`).join(', ') || 'None';
+        const towerHeightInfo = tetration.towerHeight ? ` | Tower Height: ${tetration.towerHeight.toFixed(1)}` : '';
+        const orbitalInfo = tetration.orbitalPrimes ? ` | Orbital Primes: ${tetration.orbitalPrimes.join(', ')}` : '';
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-purple-300">Tetration projection complete!</div><div class="text-xs text-purple-400/80 mt-1">Depth prime: ${tetration.primesDepthUsed}${towerHeightInfo}${orbitalInfo} | Anchors: ${anchorInfo}</div><div class="text-xs text-gray-400 mt-2">Quadratic: ${tetration.oscillationAnalysis?.quadraticPattern.toFixed(6)} | Entropy: ${tetration.oscillationAnalysis?.entropy.toFixed(4)}</div></div></div>`,
+          'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center'
+        );
+      } catch (e) {
+        console.error('Tetration projection error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
+        let errorMessage = e.message || 'An unknown error occurred';
+        
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
+          errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
+        }
+        
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`,
+          'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
+        );
+      }
+    }
+
+    async function snapshot() {
+      try {
+        // Check if symbol changed and reload if needed
+        if (checkSymbolChange()) {
+          return; // Page will reload
+        }
+        
+        lastProjectionMethod = 'snapshot';
+        updateStatus(
+          '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div><span>Running snapshot analysis...</span></div>',
+          'p-4 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300 min-h-[60px] flex items-center'
+        );
+        
+        let symbol = getSymbol();
+        
+        // Fetch and display stock info
+        fetchAndDisplayStockInfo(symbol).catch(err => console.warn('Stock info fetch error:', err));
+        
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
+        }
+        
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
+        const base = selectedBase;
+        const horizon = selectedHorizon;
+        const beta = 0.01; // Default beta value
+        const count = selectedProjCount;
+        const depthPrime = PRIME_STOPS[selectedPrimeIndex];
+
+        // Use centralized API routes (from PDF analysis principles)
+        let points = [];
+        let baseLabels = [];
+        try {
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
+          }
+          const hist = await histResp.json();
+          if (hist.error) {
+            throw new Error(hist.error);
+          }
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
+          baseLabels = timestamps.map(ts => {
+            try {
+              return new Date(ts * 1000).toLocaleDateString();
+            } catch (e) {
+              return ts.toString();
+            }
+          });
+          if (points.length === 0) {
+            points = [];
+            baseLabels = [];
+          }
+        } catch (histErr) {
+          console.warn('Could not fetch history:', histErr);
+          points = [];
+          baseLabels = [];
+        }
+
+        // Try multiple API paths as fallback using centralized routes
+        const apiPaths = [
+          apiRoutes.snapshot(),
+          `/trading${apiRoutes.snapshot()}`
+        ];
+        
+        let snapResp = null;
+        let lastError = null;
+        let lastSnapshotUrl = null;
+        
+        for (const snapshotUrl of apiPaths) {
+          lastSnapshotUrl = snapshotUrl; // Store for error logging
+          try {
+            console.log('Trying snapshot URL:', snapshotUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            snapResp = await apiFetch(snapshotUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            }, 3);
+            
+            console.log('Snapshot response status:', snapResp.status, snapResp.statusText);
+            
+            if (snapResp.ok) {
+              console.log('Successfully fetched from:', snapshotUrl);
+              break; // Success, exit loop
+            } else if (snapResp.status === 404) {
+              console.warn('404 from:', snapshotUrl, '- trying next path...');
+              lastError = `HTTP ${snapResp.status}: ${snapResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', snapshotUrl, fetchErr.message);
+            lastError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!snapResp || !snapResp.ok) {
+          const errorText = await snapResp?.text().catch(() => snapResp?.statusText || lastError || 'Unknown error');
+          console.error('Snapshot error after trying all paths:', {
+            status: snapResp?.status,
+            statusText: snapResp?.statusText,
+            errorText: errorText,
+            url: lastSnapshotUrl || 'Unknown URL'
+          });
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${snapResp?.status || 'Network'}: ${snapResp?.statusText || lastError || 'Failed to fetch'}` };
+          }
+          // Prefer hint field (user-friendly), then error field, then details field
+          const serverError = errorData.hint || errorData.error || errorData.details || errorData.message;
+          const err = new Error(serverError || `Server error (${snapResp?.status || 'Network'}): ${snapResp?.statusText || lastError || 'Failed to fetch'}`);
+          err.status = snapResp?.status;
+          err.errorData = errorData;
+          throw err;
+        }
+        
+        const snap = await snapResp.json();
+        if (snap.error) throw new Error(snap.error);
+
+        const lastPrice = fromQ8(snap.lastPriceQ8);
+        const labels = [...baseLabels];
+        for (let i = 1; i <= horizon; i++) labels.push(`+${i}`);
+
+        const datasets = [];
+
+        if (points.length > 0) {
+          datasets.push({
+            label: `${symbol} (history)`,
+            data: [
+              ...points.slice(-Math.min(60, points.length)),
+              ...Array(horizon).fill(null)
+            ],
+            borderColor: '#9ea7bd',
+            backgroundColor: '#9ea7bd',
+            borderWidth: 1.5,
+            pointRadius: 0
+          });
+        }
+
+        const lastSegment = Array(horizon).fill(lastPrice);
+        datasets.push({
+          label: 'Last price',
+          data: [
+            ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+            ...lastSegment
+          ],
+          borderDash: [4, 4],
+          borderColor: 'rgba(255,255,255,0.35)',
+          backgroundColor: 'rgba(255,255,255,0.35)',
+          pointRadius: 0
+        });
+
+        snap.lines.forEach((line, i) => {
+          const proj = line.pointsQ8.map(fromQ8);
+          datasets.push({
+            label: `Triad ${line.triad.join('-')}`,
+            data: [
+              ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+              ...proj
+            ],
+            borderColor: color(i),
+            backgroundColor: color(i, 0.18),
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0
+          });
+        });
+
+        chart.data.labels = labels;
+        chart.data.datasets = datasets;
+        chart.update('none');
+        
+        // Hide instructions
+        if (chartInstructions) {
+          chartInstructions.style.display = 'none';
+        }
+
+        const osc = snap.lines.map((l, i) => `L${i+1}[${l.triad.join('-')}] zc=${l.zeroCrossings}, tp=${l.turningPoints}`).join(' | ');
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-green-300">Snapshot complete!</div><div class="text-xs text-green-400/80 mt-1">Depth prime: ${snap.primesDepthUsed}</div><div class="text-xs text-gray-400 mt-2">${osc}</div></div></div>`,
+          'p-4 bg-green-900/20 border border-green-700 rounded-lg text-sm text-green-300 min-h-[60px] flex items-center'
+        );
+      } catch (e) {
+        console.error('Snapshot error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
+        let errorMessage = e.message || 'An unknown error occurred';
+        
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
+          errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
+        }
+        
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`,
+          'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
+        );
+      }
+    }
+
+    // Helper function to sync status between desktop and mobile
+    function updateStatus(html, className) {
+      const statusDesktop = $('status');
+      const statusMobile = $('statusMobile');
+      if (statusDesktop) {
+        statusDesktop.innerHTML = html;
+        statusDesktop.className = className;
+      }
+      if (statusMobile) {
+        statusMobile.innerHTML = html;
+        statusMobile.className = className;
+      }
+    }
+    
+    // Helper function to get symbol from either input
+    function getSymbol() {
+      const tickerDesktop = $('ticker');
+      const tickerMobile = $('tickerMobile');
+      if (tickerDesktop && tickerDesktop.value) {
+        return tickerDesktop.value.trim().toUpperCase();
+      }
+      if (tickerMobile && tickerMobile.value) {
+        return tickerMobile.value.trim().toUpperCase();
+      }
+      return 'AAPL'; // Default
+    }
+    
+    // Track current symbol to detect changes
+    let currentSymbol = null;
+    
+    // Function to fetch and display stock quote info
+    async function fetchAndDisplayStockInfo(symbol) {
+      const stockInfoEl = $('stockInfo');
+      const stockInfoMobileEl = $('stockInfoMobile');
+      if (!stockInfoEl && !stockInfoMobileEl) {
+        console.warn('Stock info elements not found');
+        return;
+      }
+      
+      // Validate and normalize symbol
+      if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+        throw new Error('Invalid stock symbol');
+      }
+      
+      const normalizedSymbol = symbol.trim().toUpperCase();
+      console.log('Fetching stock info for symbol:', normalizedSymbol);
+      
+      try {
+        // Use centralized API route (already handles base path)
+        const quoteUrl = apiRoutes.quote(normalizedSymbol, '1d');
+        console.log('Fetching quote from:', quoteUrl);
+        
+        // Single fetch attempt with timeout to prevent hanging
+        const fetchPromise = apiFetch(quoteUrl, { method: 'GET' }, 1); // Only 1 retry
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout after 10 seconds')), 10000)
+        );
+        
+        const quoteResp = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (!quoteResp || !quoteResp.ok) {
+          const errorText = await quoteResp?.text().catch(() => quoteResp?.statusText || 'Unknown error');
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText };
+          }
+          const errorMsg = errorData.error || errorData.message || `HTTP ${quoteResp?.status || 'Unknown'}`;
+          throw new Error(`Failed to fetch quote: ${errorMsg}`);
+        }
+        
+        const quote = await quoteResp.json();
+        console.log('Quote data received:', quote);
+        
+        // Update stock info display
+        const price = quote.regularMarketPrice || quote.c || 0;
+        const previousClose = quote.regularMarketPreviousClose || quote.pc || price;
+        const change = quote.change !== undefined ? quote.change : (price - previousClose);
+        const changePercent = quote.percentChange !== undefined ? quote.percentChange : (previousClose ? (change / previousClose) * 100 : 0);
+        const open = quote.regularMarketOpen || quote.o || price;
+        const high = quote.regularMarketHigh || quote.h || price;
+        const low = quote.regularMarketLow || quote.l || price;
+        
+        // Format numbers
+        const formatPrice = (val) => val ? `$${val.toFixed(2)}` : '-';
+        const formatChange = (val) => {
+          if (val === null || val === undefined) return '-';
+          const sign = val >= 0 ? '+' : '';
+          return `${sign}${val.toFixed(2)}`;
+        };
+        const formatChangePercent = (val) => {
+          if (val === null || val === undefined) return '-';
+          const sign = val >= 0 ? '+' : '';
+          return `${sign}${val.toFixed(2)}%`;
+        };
+        
+        // Determine color based on change
+        const changeColor = change >= 0 ? 'text-green-400' : 'text-red-400';
+        
+        // Helper function to update elements
+        const updateElement = (id, value, className = null) => {
+          const el = $(id);
+          if (el) {
+            el.textContent = value;
+            if (className) el.className = className;
+          }
+        };
+        
+        // Update desktop elements
+        updateElement('stockSymbol', normalizedSymbol);
+        updateElement('stockName', quote.longName || quote.name || normalizedSymbol);
+        updateElement('stockPrice', formatPrice(price));
+        updateElement('stockChange', formatChange(change), `text-sm font-medium ${changeColor}`);
+        updateElement('stockChangePercent', formatChangePercent(changePercent), `text-sm font-medium ${changeColor}`);
+        updateElement('stockPreviousClose', formatPrice(previousClose));
+        updateElement('stockOpen', formatPrice(open));
+        updateElement('stockHigh', formatPrice(high));
+        updateElement('stockLow', formatPrice(low));
+        
+        // Update mobile elements
+        updateElement('stockSymbolMobile', normalizedSymbol);
+        updateElement('stockNameMobile', quote.longName || quote.name || normalizedSymbol);
+        updateElement('stockPriceMobile', formatPrice(price));
+        updateElement('stockChangeMobile', formatChange(change), `text-sm font-medium ${changeColor}`);
+        updateElement('stockChangePercentMobile', formatChangePercent(changePercent), `text-sm font-medium ${changeColor}`);
+        updateElement('stockPreviousCloseMobile', formatPrice(previousClose));
+        updateElement('stockOpenMobile', formatPrice(open));
+        updateElement('stockHighMobile', formatPrice(high));
+        updateElement('stockLowMobile', formatPrice(low));
+        
+        // Show stock info sections
+        if (stockInfoEl) {
+          stockInfoEl.classList.remove('hidden');
+          console.log('Stock info section shown (desktop)');
+        }
+        if (stockInfoMobileEl) {
+          stockInfoMobileEl.classList.remove('hidden');
+          console.log('Stock info section shown (mobile)');
+        }
+      } catch (e) {
+        console.error('Failed to fetch stock info:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          symbol: normalizedSymbol
+        });
+        // Hide stock info on error
+        if (stockInfoEl) stockInfoEl.classList.add('hidden');
+        if (stockInfoMobileEl) stockInfoMobileEl.classList.add('hidden');
+        // Re-throw error so caller can handle it
+        throw e;
+      }
+    }
+    
+    // Function to check if symbol changed and reload if needed
+    function checkSymbolChange() {
+      const newSymbol = getSymbol();
+      if (currentSymbol && currentSymbol !== newSymbol && newSymbol) {
+        // Symbol changed, reload the page to restart the app
+        console.log(`Symbol changed from ${currentSymbol} to ${newSymbol}, reloading...`);
+        window.location.reload();
+        return true;
+      }
+      currentSymbol = newSymbol;
+      return false;
+    }
+    
+    const tetrationBtn = $('tetrationBtn');
+    const snapshotBtn = $('snapshotBtn');
+    const clearBtn = $('clearBtn');
+    
+    if (tetrationBtn) {
+      tetrationBtn.addEventListener('click', tetrationProjection);
+    }
+    if (snapshotBtn) {
+      snapshotBtn.addEventListener('click', snapshot);
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+      chart.data.labels = [];
+      chart.data.datasets = [];
+      chart.update();
+      if (chartInstructions) {
+        chartInstructions.style.display = 'flex';
+      }
+      const oscMetrics = $('oscillationMetrics');
+      const oscMetricsMobile = $('oscillationMetricsMobile');
+      if (oscMetrics) {
+        oscMetrics.classList.add('hidden');
+      }
+      if (oscMetricsMobile) {
+        oscMetricsMobile.classList.add('hidden');
+      }
+      const statusHtml = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>Chart cleared. Ready for new projection.</span></div>';
+      const statusClass = 'p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center';
+      updateStatus(statusHtml, statusClass);
+      });
+    }
+    
+    // Mobile button event listeners
+    const tetrationBtnMobile = $('tetrationBtnMobile');
+    const snapshotBtnMobile = $('snapshotBtnMobile');
+    const clearBtnMobile = $('clearBtnMobile');
+    
+    if (tetrationBtnMobile) {
+      tetrationBtnMobile.addEventListener('click', () => {
+        closeMobileMenu();
+        tetrationProjection();
+      });
+    }
+    if (snapshotBtnMobile) {
+      snapshotBtnMobile.addEventListener('click', () => {
+        closeMobileMenu();
+        snapshot();
+      });
+    }
+    if (clearBtnMobile) {
+      clearBtnMobile.addEventListener('click', () => {
+        chart.data.labels = [];
+        chart.data.datasets = [];
+        chart.update();
+        if (chartInstructions) {
+          chartInstructions.style.display = 'flex';
+        }
+        const oscMetrics = $('oscillationMetrics');
+        const oscMetricsMobile = $('oscillationMetricsMobile');
+        if (oscMetrics) {
+          oscMetrics.classList.add('hidden');
+        }
+        if (oscMetricsMobile) {
+          oscMetricsMobile.classList.add('hidden');
+        }
+        const statusHtml = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>Chart cleared. Ready for new projection.</span></div>';
+        const statusClass = 'p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center';
+        updateStatus(statusHtml, statusClass);
+        closeMobileMenu();
+      });
+    }
+    
+    // Zoom in button
+    const zoomInBtn = $('zoomInBtn');
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', () => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      try {
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (!xScale || !yScale) return;
+        const centerX = (xScale.max + xScale.min) / 2;
+        const centerY = (yScale.max + yScale.min) / 2;
+        const rangeX = xScale.max - xScale.min;
+        const rangeY = yScale.max - yScale.min;
+        const zoomFactor = 0.8;
+        const newRangeX = Math.max(rangeX * zoomFactor, 1);
+        const newRangeY = Math.max(rangeY * zoomFactor, 0.01);
+        if (xScale.options) {
+          xScale.options.min = centerX - newRangeX / 2;
+          xScale.options.max = centerX + newRangeX / 2;
+        }
+        if (yScale.options) {
+          yScale.options.min = centerY - newRangeY / 2;
+          yScale.options.max = centerY + newRangeY / 2;
+        }
+        chart.update('none');
+      } catch (e) {
+        console.warn('Zoom in error:', e);
+      }
+      });
+    }
+
+    // Zoom out button
+    const zoomOutBtn = $('zoomOutBtn');
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', () => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      try {
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (!xScale || !yScale) return;
+        const centerX = (xScale.max + xScale.min) / 2;
+        const centerY = (yScale.max + yScale.min) / 2;
+        const rangeX = xScale.max - xScale.min;
+        const rangeY = yScale.max - yScale.min;
+        const zoomFactor = 1.25;
+        const newRangeX = rangeX * zoomFactor;
+        const newRangeY = rangeY * zoomFactor;
+        if (xScale.options) {
+          xScale.options.min = centerX - newRangeX / 2;
+          xScale.options.max = centerX + newRangeX / 2;
+        }
+        if (yScale.options) {
+          yScale.options.min = centerY - newRangeY / 2;
+          yScale.options.max = centerY + newRangeY / 2;
+        }
+        chart.update('none');
+      } catch (e) {
+        console.warn('Zoom out error:', e);
+      }
+      });
+    }
+
+    // Manual panning - only attach listeners if ctx is available
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartXMin = 0;
+    let panStartXMax = 0;
+    let panStartYMin = 0;
+    let panStartYMax = 0;
+
+    // Attach event listeners only after ctx is initialized
+    function attachPanListeners() {
+      // Get ctx fresh each time to ensure it's available
+      const canvasElement = document.getElementById('chart');
+      if (!canvasElement) {
+        console.warn('Canvas element not available for pan listeners');
+        return;
+      }
+      
+      // Use the canvas element directly
+      const canvasCtx = canvasElement;
+
+    canvasCtx.addEventListener('mousedown', (e) => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      const rect = canvasCtx.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+        isPanning = true;
+        panStartX = x;
+        panStartY = y;
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (xScale && yScale) {
+          panStartXMin = xScale.min;
+          panStartXMax = xScale.max;
+          panStartYMin = yScale.min;
+          panStartYMax = yScale.max;
+        }
+        canvasCtx.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+
+    canvasCtx.addEventListener('mousemove', (e) => {
+      if (!isPanning || !chart.data.labels || chart.data.labels.length === 0) return;
+      const rect = canvasCtx.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      if (xScale && yScale) {
+        const deltaX = panStartX - x;
+        const deltaY = panStartY - y;
+        const xRange = panStartXMax - panStartXMin;
+        const yRange = panStartYMax - panStartYMin;
+        const xRatio = deltaX / rect.width;
+        const yRatio = deltaY / rect.height;
+        xScale.options.min = panStartXMin + (xRatio * xRange);
+        xScale.options.max = panStartXMax + (xRatio * xRange);
+        yScale.options.min = panStartYMin - (yRatio * yRange);
+        yScale.options.max = panStartYMax - (yRatio * yRange);
+        chart.update('none');
+      }
+      e.preventDefault();
+    });
+
+    canvasCtx.addEventListener('mouseup', () => {
+      if (isPanning) {
+        isPanning = false;
+        canvasCtx.style.cursor = 'grab';
+      }
+    });
+
+    canvasCtx.addEventListener('mouseleave', () => {
+      if (isPanning) {
+        isPanning = false;
+        canvasCtx.style.cursor = 'grab';
+      }
+    });
+    }
+
+    // Call attachPanListeners after chart is initialized
+    // This will be called from initializeChart after the chart is created
+
+    const resetZoomBtn = $('resetZoomBtn');
+    if (resetZoomBtn) {
+      resetZoomBtn.addEventListener('click', () => {
+        try {
+        if (!chart.data.labels || chart.data.labels.length === 0) {
+          console.log('No chart data to reset');
+          return;
+        }
+        if (typeof chart.resetZoom === 'function') {
+          chart.resetZoom();
+          chart.update('none');
+          console.log('Reset via zoom plugin');
+          return;
+        }
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (xScale) {
+          if (xScale.options) {
+            delete xScale.options.min;
+            delete xScale.options.max;
+          }
+          xScale.min = undefined;
+          xScale.max = undefined;
+          xScale._suggestedMin = undefined;
+          xScale._suggestedMax = undefined;
+        }
+        if (yScale) {
+          if (yScale.options) {
+            delete yScale.options.min;
+            delete yScale.options.max;
+          }
+          yScale.min = undefined;
+          yScale.max = undefined;
+          yScale._suggestedMin = undefined;
+          yScale._suggestedMax = undefined;
+        }
+        chart.reset();
+        chart.update('none');
+        setTimeout(() => {
+          if (xScale && (xScale.options.min !== undefined || xScale.options.max !== undefined)) {
+            delete xScale.options.min;
+            delete xScale.options.max;
+            chart.update('none');
+          }
+          if (yScale && (yScale.options.min !== undefined || yScale.options.max !== undefined)) {
+            delete yScale.options.min;
+            delete yScale.options.max;
+            chart.update('none');
+          }
+        }, 10);
+        console.log('Chart reset complete (manual method)');
+      } catch (e) {
+        console.error('Error resetting chart:', e);
+        try {
+          chart.reset();
+          chart.update('none');
+        } catch (fallbackError) {
+          console.error('Fallback reset also failed:', fallbackError);
+        }
+      }
+      });
+    }
+  </script>
+</body>
+</html>

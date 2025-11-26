@@ -1,0 +1,399 @@
+/* Custom Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Base Styles */
+* {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Page Transitions */
+.page-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card Hover Effects */
+.stat-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.dark .stat-card:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Pulse Animation for Status */
+.status-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Glow Effects */
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+/* Chart Container */
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+/* Monitor Card Styles */
+.monitor-card {
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.monitor-card.status-up {
+  border-left-color: #10b981;
+}
+
+.monitor-card.status-down {
+  border-left-color: #ef4444;
+}
+
+.monitor-card.status-degraded {
+  border-left-color: #f59e0b;
+}
+
+.monitor-card:hover {
+  transform: translateX(4px);
+}
+
+/* News Card Animation */
+.news-card {
+  transition: all 0.3s ease;
+}
+
+.news-card:hover {
+  transform: scale(1.02);
+}
+
+.news-card:hover .news-image {
+  transform: scale(1.1);
+}
+
+.news-image-container {
+  overflow: hidden;
+}
+
+.news-image {
+  transition: transform 0.5s ease;
+}
+
+/* Loading Spinner */
+.spinner {
+  border: 3px solid transparent;
+  border-top-color: #10b981;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button Styles */
+.btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+}
+
+/* Input Focus Styles */
+.input-field {
+  transition: all 0.3s ease;
+}
+
+.input-field:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Toggle Switch Animation */
+#theme-toggle span {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Activity Timeline */
+.timeline-item {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 1.5rem;
+  bottom: -1rem;
+  width: 2px;
+  background: linear-gradient(to bottom, #10b981, transparent);
+}
+
+.timeline-item:last-child::before {
+  display: none;
+}
+
+/* Table Styles */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table th {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.dark .data-table th {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.data-table tr:hover td {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* Progress Bar Animation */
+.progress-bar {
+  transition: width 1s ease-in-out;
+}
+
+/* Responsive Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Badge Styles */
+.badge {
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Notification Dot */
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  animation: pulse 2s infinite;
+}
+
+/* Chart Tooltip Custom */
+.apexcharts-tooltip {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+}
+
+.apexcharts-tooltip-title {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 50;
+}
+
+.fab:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 15px 40px rgba(16, 185, 129, 0.5);
+}
+
+/* Real-time Update Flash */
+.update-flash {
+  animation: flash 0.5s ease;
+}
+
+@keyframes flash {
+  0%, 100% {
+    background: transparent;
+  }
+  50% {
+    background: rgba(16, 185, 129, 0.1);
+  }
+}
+
+/* Responsive Grid */
+@media (max-width: 640px) {
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .chart-container {
+    height: 200px;
+  }
+  
+  /* Fixed Settings Combined Box - Mobile Optimization */
+  .grid.grid-cols-3 {
+    gap: 0.75rem;
+  }
+  
+  .grid.grid-cols-3 p.text-xs {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+  }
+  
+  .grid.grid-cols-3 span.text-xl {
+    font-size: 1rem;
+  }
+  
+  /* Hide vertical dividers on very small screens */
+  @media (max-width: 375px) {
+    .grid.grid-cols-3 .border-l,
+    .grid.grid-cols-3 .border-r {
+      border: none !important;
+    }
+    
+    .grid.grid-cols-3 {
+      gap: 0.5rem;
+    }
+  }
+}
+
+/* Print Styles */
+@media print {
+  #sidebar,
+  #mobile-menu-btn {
+    display: none !important;
+  }
+  
+  #main-content {
+    margin-left: 0 !important;
+  }
+}
+

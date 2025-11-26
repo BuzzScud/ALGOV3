@@ -1,0 +1,2073 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>Prime Tetration Trading — Snapshot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1e293b">
+  <base href="/trading/">
+  
+  <!-- Tailwind CSS -->
+  <link href="css/tailwind.css" rel="stylesheet">
+  
+  <!-- Preline UI - Using CDN for reliability (matches package.json version) -->
+  <script src="https://cdn.jsdelivr.net/npm/preline@3.2.3/dist/preline.js"></script>
+  
+  <!-- Chart.js - Using CDN for reliability (matches package.json version) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+  
+  <style>
+    canvas {
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+    #chart {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1e3a8a 100%);
+    }
+    
+    /* Mobile Menu Overlay - Modern Material Design */
+    #mobileMenuOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    #mobileMenuOverlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    #mobileMenuPanel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 90%;
+      max-width: 400px;
+      background: #1e293b;
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    #mobileMenuPanel.active {
+      transform: translateX(0);
+    }
+    
+    /* Floating Menu Button - Material Design FAB */
+    #mobileMenuBtn {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1000;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      touch-action: manipulation;
+    }
+    
+    #mobileMenuBtn:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    #mobileMenuBtn svg {
+      width: 24px;
+      height: 24px;
+      color: white;
+      transition: transform 0.3s ease;
+    }
+    
+    #mobileMenuBtn.active svg {
+      transform: rotate(90deg);
+    }
+    
+    /* Hide on desktop */
+    @media (min-width: 1024px) {
+      #mobileMenuBtn,
+      #mobileMenuOverlay,
+      #mobileMenuPanel {
+        display: none !important;
+      }
+    }
+    
+    /* Smooth scrolling for menu */
+    #mobileMenuPanel {
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #1e293b;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    
+    #mobileMenuPanel::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 antialiased">
+  <!-- Mobile Menu Button (Floating Action Button) -->
+  <button id="mobileMenuBtn" type="button" aria-label="Open menu" class="lg:hidden">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+    </svg>
+  </button>
+  
+  <!-- Mobile Menu Overlay -->
+  <div id="mobileMenuOverlay" class="lg:hidden"></div>
+  
+  <!-- Mobile Menu Panel (Slide-in from right) -->
+  <div id="mobileMenuPanel" class="lg:hidden">
+    <!-- Mobile Menu Header -->
+    <div class="gradient-bg px-6 py-6 border-b border-blue-700/50 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex-shrink-0">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-white">Prime Tetration</h1>
+            <p class="text-sm text-blue-100">Trading Projections</p>
+          </div>
+        </div>
+        <button id="mobileMenuCloseBtn" type="button" aria-label="Close menu" class="p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Mobile Menu Content (Same as sidebar but optimized for mobile) -->
+    <div class="p-6 space-y-6">
+      <!-- Stock Symbol Section -->
+      <div>
+        <label for="tickerMobile" class="block text-sm font-semibold text-gray-300 mb-3">
+          Stock Symbol
+        </label>
+        <div class="relative">
+          <input type="text" id="tickerMobile" value="AAPL" placeholder="Enter symbol (e.g., AAPL, TSLA)" 
+            class="py-3 px-4 block w-full border-gray-600 rounded-lg text-base focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
+          <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projection Settings -->
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
+          <h2 class="text-base font-semibold text-gray-200">Projection Settings</h2>
+        </div>
+        
+        <div class="space-y-5">
+          <!-- Prime Depth -->
+          <div>
+            <label for="primeDepthInputMobile" class="block text-sm font-medium text-gray-400 mb-3">
+              Prime Depth
+            </label>
+            <div class="relative">
+              <input type="number" id="primeDepthInputMobile" value="31" min="11" max="281" step="1" 
+                class="py-3 px-4 block w-full border-gray-600 rounded-lg text-base focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
+                placeholder="Enter prime (11-281)">
+              <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500 text-center">
+              Selected: <span class="text-blue-400 font-semibold" id="depthPrimeLabelMobile">31</span>
+            </div>
+          </div>
+
+          <!-- Fixed Settings (Combined) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-3">
+              Fixed Settings
+            </label>
+            <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+              <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="flex flex-col items-center">
+                  <p class="text-xs text-gray-500 mb-1.5">Base Seed</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="baseLabelMobile">3</span>
+                </div>
+                <div class="flex flex-col items-center border-l border-r border-gray-600/50">
+                  <p class="text-xs text-gray-500 mb-1.5">Projections</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="projCountLabelMobile">12</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <p class="text-xs text-gray-500 mb-1.5">Horizon</p>
+                  <span class="text-blue-400 font-semibold text-xl" id="horizonLabelMobile">240</span>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 text-center mt-3">All values are fixed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-4 border-t border-gray-700">
+        <div class="flex flex-col gap-3">
+          <button id="tetrationBtnMobile" type="button" 
+            class="w-full py-4 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white active:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 active:shadow-purple-500/30 touch-manipulation">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Tetration Projection
+          </button>
+          <button id="snapshotBtnMobile" type="button" 
+            class="w-full py-4 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white active:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 active:shadow-blue-500/30 touch-manipulation">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Generate Snapshot
+          </button>
+          <button id="clearBtnMobile" type="button" 
+            class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 active:bg-gray-700 active:border-gray-500 transition-all touch-manipulation">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Clear Chart
+          </button>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <div id="statusMobile" class="p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Ready. Enter a symbol and click Tetration Projection or Generate Snapshot.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oscillation Metrics (hidden by default) -->
+      <div id="oscillationMetricsMobile" class="pt-4 border-t border-gray-700 hidden">
+        <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">Oscillation Analysis</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPatternMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Entropy: <span id="entropyMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDimsMobile">-</span></span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimesMobile">-</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <div class="hidden lg:flex lg:flex-shrink-0">
+      <div class="flex flex-col w-96 bg-gray-800 border-r border-gray-700">
+        <!-- Header -->
+        <div class="gradient-bg px-6 py-6 border-b border-blue-700/50">
+          <div class="flex items-center gap-3">
+            <div class="flex-shrink-0">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-white">Prime Tetration</h1>
+              <p class="text-sm text-blue-100">Trading Projections</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto">
+          <div class="p-6 space-y-8">
+            <!-- Stock Symbol Section -->
+            <div>
+              <label for="ticker" class="block text-sm font-semibold text-gray-300 mb-3">
+                Stock Symbol
+              </label>
+              <div class="relative">
+                <input type="text" id="ticker" value="AAPL" placeholder="Enter symbol (e.g., AAPL, TSLA)" 
+                  class="py-3 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all">
+                <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Projection Settings -->
+            <div>
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
+                <h2 class="text-base font-semibold text-gray-200">Projection Settings</h2>
+              </div>
+              
+              <div class="space-y-5">
+                <!-- Prime Depth -->
+                <div>
+                  <label for="primeDepthInput" class="block text-sm font-medium text-gray-400 mb-3">
+                    Prime Depth
+                  </label>
+                  <div class="relative">
+                    <input type="number" id="primeDepthInput" value="31" min="11" max="281" step="1" 
+                      class="py-3 px-4 block w-full border-gray-600 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-700/50 text-white placeholder-gray-400 transition-all"
+                      placeholder="Enter prime (11-281)">
+                    <div class="absolute inset-y-0 end-0 flex items-center pe-3 pointer-events-none">
+                      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="mt-2 text-xs text-gray-500 text-center">
+                    Selected: <span class="text-blue-400 font-semibold" id="depthPrimeLabel">31</span>
+                  </div>
+                </div>
+
+                <!-- Fixed Settings (Combined) -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-3">
+                    Fixed Settings
+                  </label>
+                  <div class="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                      <div class="flex flex-col items-center">
+                        <p class="text-xs text-gray-500 mb-1.5">Base Seed</p>
+                        <span class="text-blue-400 font-semibold text-xl" id="baseLabel">3</span>
+                      </div>
+                      <div class="flex flex-col items-center border-l border-r border-gray-600/50">
+                        <p class="text-xs text-gray-500 mb-1.5">Projections</p>
+                        <span class="text-blue-400 font-semibold text-xl" id="projCountLabel">12</span>
+                      </div>
+                      <div class="flex flex-col items-center">
+                        <p class="text-xs text-gray-500 mb-1.5">Horizon</p>
+                        <span class="text-blue-400 font-semibold text-xl" id="horizonLabel">240</span>
+                      </div>
+                    </div>
+                    <p class="text-xs text-gray-500 text-center mt-3">All values are fixed</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-4 border-t border-gray-700">
+              <div class="flex flex-col gap-3">
+                <button id="tetrationBtn" type="button" 
+                  class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                  Tetration Projection
+                </button>
+                <button id="snapshotBtn" type="button" 
+                  class="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                  Generate Snapshot
+                </button>
+                <button id="clearBtn" type="button" 
+                  class="w-full py-2.5 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                  Clear Chart
+                </button>
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div>
+              <div id="status" class="p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center">
+                <div class="flex items-start gap-3">
+                  <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <span>Ready. Enter a symbol and click Tetration Projection or Generate Snapshot.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Oscillation Metrics (hidden by default) -->
+            <div id="oscillationMetrics" class="pt-4 border-t border-gray-700 hidden">
+              <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">Oscillation Analysis</h3>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                  <span class="text-xs text-gray-300">Quadratic Pattern: <span id="quadraticPattern">-</span></span>
+                </div>
+                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                  <span class="text-xs text-gray-300">Entropy: <span id="entropy">-</span></span>
+                </div>
+                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                  <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                  <span class="text-xs text-gray-300">Anchor Dimensions: <span id="anchorDims">-</span></span>
+                </div>
+                <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+                  <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                  <span class="text-xs text-gray-300">Orbital Primes: <span id="orbitalPrimes">-</span></span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-900">
+      <!-- Chart Header -->
+      <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-white">Price Projections</h2>
+            <p class="text-sm text-gray-400 mt-0.5">Interactive chart with prime tetration analysis</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="zoomInBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Zoom In">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+              </svg>
+              Zoom In
+            </button>
+            <button id="zoomOutBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Zoom Out">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+              </svg>
+              Zoom Out
+            </button>
+            <button id="resetZoomBtn" type="button" 
+              class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-600 bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all"
+              title="Reset Zoom">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Container -->
+      <div class="flex-1 p-6 relative overflow-hidden">
+        <div class="w-full h-full bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl">
+          <div class="w-full h-full relative">
+            <canvas id="chart"></canvas>
+          </div>
+        </div>
+        
+        <!-- Chart Instructions Overlay (hidden when chart has data) -->
+        <div id="chartInstructions" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div class="text-center p-8 bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700">
+            <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-gray-300 mb-2">No Chart Data</h3>
+            <p class="text-sm text-gray-400">Enter a stock symbol and click "Generate Snapshot" to view projections</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Information -->
+      <div class="px-6 py-4 border-t border-gray-800 bg-gray-800/30">
+        <h3 class="text-xs font-semibold uppercase text-gray-400 mb-3">System Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">φ Dimensions: [3,7,31,12,19,5,11,13,17,23,29,31]</span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">Q8 Fixed-Point Active</span>
+          </div>
+          <div class="flex items-center gap-2 p-2.5 bg-gray-700/30 rounded-lg border border-gray-600/50">
+            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            <span class="text-xs text-gray-300">+8 Bit Guard Truncation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // CRITICAL: Define fetch immediately before any other code runs
+    // Fetch polyfill for older browsers or environments where fetch is not available
+    // Use ES5 syntax for maximum compatibility
+    // This MUST run synchronously and set window.fetch before any other code executes
+    (function() {
+      'use strict';
+      // Always define fetch - if native fetch exists, use it; otherwise use polyfill
+      var nativeFetch = null;
+      try {
+        if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+          nativeFetch = window.fetch;
+        } else if (typeof fetch === 'function') {
+          nativeFetch = fetch;
+        } else if (typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function') {
+          nativeFetch = globalThis.fetch;
+        }
+      } catch (e) {
+        // Ignore errors during native fetch detection
+        console.warn('Error detecting native fetch:', e.message);
+      }
+      
+      // Define fetch function (polyfill or native)
+      var fetchFunction = nativeFetch || function(url, options) {
+          // Handle default parameters for older browsers
+          options = options || {};
+          url = url || '';
+          
+          return new Promise(function(resolve, reject) {
+            try {
+              var xhr = new XMLHttpRequest();
+              var method = options.method || 'GET';
+              var headers = options.headers || {};
+              
+              xhr.open(method, url, true);
+              
+              // Set headers
+              if (headers && typeof headers === 'object') {
+                for (var key in headers) {
+                  if (headers.hasOwnProperty(key)) {
+                    xhr.setRequestHeader(key, headers[key]);
+                  }
+                }
+              }
+              
+              xhr.onload = function() {
+                var response = {
+                  ok: xhr.status >= 200 && xhr.status < 300,
+                  status: xhr.status,
+                  statusText: xhr.statusText || '',
+                  headers: {},
+                  text: function() {
+                    return Promise.resolve(xhr.responseText || '');
+                  },
+                  json: function() {
+                    try {
+                      return Promise.resolve(JSON.parse(xhr.responseText || '{}'));
+                    } catch (e) {
+                      return Promise.reject(new Error('Invalid JSON response: ' + e.message));
+                    }
+                  }
+                };
+                
+                // Parse headers
+                var headerStr = xhr.getAllResponseHeaders();
+                if (headerStr) {
+                  var headerLines = headerStr.split('\r\n');
+                  for (var i = 0; i < headerLines.length; i++) {
+                    var line = headerLines[i];
+                    var parts = line.split(': ');
+                    if (parts.length === 2) {
+                      response.headers[parts[0].toLowerCase()] = parts[1];
+                    }
+                  }
+                }
+                
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve(response);
+                } else {
+                  reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+                }
+              };
+              
+              xhr.onerror = function() {
+                reject(new Error('Network error'));
+              };
+              
+              xhr.ontimeout = function() {
+                reject(new Error('Request timeout'));
+              };
+              
+              // Handle abort signal if provided
+              if (options.signal && options.signal.addEventListener) {
+                options.signal.addEventListener('abort', function() {
+                  xhr.abort();
+                  reject(new Error('Request aborted'));
+                });
+              }
+              
+              // Send request
+              if (options.body) {
+                xhr.send(options.body);
+              } else {
+                xhr.send();
+              }
+            } catch (err) {
+              reject(new Error('Fetch error: ' + err.message));
+            }
+          });
+        };
+      
+      // ALWAYS assign fetch to window and global scope
+      if (typeof window !== 'undefined') {
+        window.fetch = fetchFunction;
+      }
+      // Also set global fetch (for Node.js-like environments)
+      try {
+        if (typeof global !== 'undefined') {
+          global.fetch = fetchFunction;
+        }
+      } catch (e) {
+        // Ignore if global is not available
+      }
+      
+      // Also set it in the current scope
+      if (typeof self !== 'undefined') {
+        self.fetch = fetchFunction;
+      }
+    })();
+    
+    // CRITICAL: Verify fetch is available immediately after polyfill
+    // This will throw an error if fetch is not available, preventing further execution
+    (function() {
+      'use strict';
+      if (typeof window === 'undefined') {
+        console.error('CRITICAL: window is not defined!');
+        return;
+      }
+      
+      if (typeof window.fetch !== 'function') {
+        console.error('CRITICAL: window.fetch is not a function after polyfill initialization!');
+        console.error('window.fetch type:', typeof window.fetch);
+        // Create a minimal fetch that throws a clear error
+        window.fetch = function() {
+          throw new Error('fetch is not available - please check browser console for initialization errors');
+        };
+      } else {
+        console.log('✓ Fetch verification passed: window.fetch is available');
+      }
+    })();
+    
+    // Safe URL join utility (from PDF analysis principles)
+    // Normalizes base and path, validates URL, prevents null/undefined issues
+    function safeJoinUrl(base, path) {
+      if (!base && !path) {
+        throw new Error('API URL construction failed: both base and path are empty');
+      }
+      
+      // Normalize slashes - remove trailing slashes from base, leading slashes from path
+      const normalizedBase = (base || '').replace(/\/+$/, '');
+      const normalizedPath = (path || '').replace(/^\/+/, '');
+      
+      // Construct full URL
+      let fullUrl;
+      if (normalizedBase && normalizedPath) {
+        fullUrl = `${normalizedBase}/${normalizedPath}`;
+      } else if (normalizedBase) {
+        fullUrl = normalizedBase;
+      } else {
+        fullUrl = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+      }
+      
+      // Validate URL (for absolute URLs)
+      if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
+        try {
+          const url = new URL(fullUrl);
+          return url.toString();
+        } catch (e) {
+          console.error('Invalid URL construction', { base, path, fullUrl, error: String(e) });
+          throw new Error(`Invalid URL: ${fullUrl}`);
+        }
+      }
+      
+      // For relative URLs, just return normalized path
+      return fullUrl;
+    }
+    
+    // Centralized API routes (from PDF analysis principles)
+    const apiRoutes = {
+      quote: (symbol, period = '1d') => `/api/quote/${symbol}?period=${period}`,
+      history: (symbol, range = '1mo', interval = '1d') => `/api/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
+      snapshot: () => `/api/snapshot`,
+      tetrationProjection: () => `/api/tetration-projection`,
+      health: () => `/api/health`
+    };
+    
+    // Enhanced API fetch with retry, error handling, and URL validation
+    async function apiFetch(path, options = {}, maxRetries = 3) {
+      // Validate path is not null/undefined
+      if (!path || path === 'null' || path === 'undefined') {
+        throw new Error(`Invalid API path: ${path}`);
+      }
+      
+      // Ensure path is a string
+      const url = typeof path === 'string' ? path : String(path);
+      
+      // Validate URL before attempting fetch
+      if (!url || url.trim() === '') {
+        throw new Error('API URL is empty or invalid');
+      }
+      
+      // Add default headers
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('Content-Type') && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+        headers.set('Content-Type', 'application/json');
+      }
+      
+      // Retry logic with exponential backoff
+      let attempt = 0;
+      let lastError = null;
+      
+      while (attempt < maxRetries) {
+        try {
+          const response = await window.fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+            mode: 'cors'
+          });
+          
+          // If response is OK, return it
+          if (response.ok) {
+            return response;
+          }
+          
+          // Distinguish between network errors and HTTP errors
+          const is5xx = response.status >= 500 && response.status < 600;
+          const isNetwork = response.status === 0 || !response.status;
+          const is4xx = response.status >= 400 && response.status < 500;
+          
+          // CRITICAL: Never retry on 4xx errors (client errors like 400 Bad Request)
+          // 4xx errors indicate invalid input - retrying won't help and creates spam
+          if (is4xx) {
+            const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+            }
+            console.warn('API error (4xx - not retrying)', { url, status: response.status, body: errorText.slice(0, 500) });
+            const err = new Error(errorData.error || errorData.hint || `HTTP ${response.status}: ${response.statusText}`);
+            err.status = response.status;
+            err.body = errorText;
+            err.errorData = errorData;
+            throw err;
+          }
+          
+          // Retry on 5xx or network errors only
+          if ((is5xx || isNetwork) && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250; // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // For other errors or last attempt, get error details and throw
+          const errorText = await response.text().catch(() => response.statusText || 'Unknown error');
+          console.warn('API error', { url, status: response.status, body: errorText.slice(0, 500) });
+          throw new Error(`API ${response.status} ${response.statusText} at ${url}: ${errorText.slice(0, 200)}`);
+          
+        } catch (error) {
+          lastError = error;
+          const isNetworkError = error.message.includes('Failed to fetch') || 
+                                error.name === 'TypeError' || 
+                                error.message.includes('NetworkError');
+          
+          // Retry on network errors
+          if (isNetworkError && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 250;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            continue;
+          }
+          
+          // If not retryable or last attempt, throw
+          if (attempt === maxRetries - 1) {
+            throw error;
+          }
+        }
+      }
+      
+      throw lastError || new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+    }
+    
+    // Legacy fetchWithRetry for backward compatibility
+    async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+      return apiFetch(url, options, maxRetries);
+    }
+    
+    // Prime depth options - expanded up to 281
+    const PRIME_STOPS = [
+      11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 
+      97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 
+      179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 
+      269, 271, 277, 281
+    ];
+    
+    // Helper functions and variables (available globally)
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status');
+    const chartInstructions = $('chartInstructions');
+    
+    // Wait for Chart.js to load
+    function waitForChart(callback) {
+      if (typeof Chart !== 'undefined') {
+        callback();
+      } else {
+        setTimeout(() => waitForChart(callback), 50);
+      }
+    }
+    
+    // Global chart variable
+    let chart;
+    // Global canvas element variable (needed for event listeners)
+    let ctx;
+    
+    waitForChart(() => {
+      // Check if Chart.js is loaded
+      if (typeof Chart === 'undefined') {
+        document.body.innerHTML = '<div class="p-20 text-red-500">Error: Chart.js library failed to load. Please check that the server is running and node_modules are accessible.</div>';
+        throw new Error('Chart.js not loaded');
+      }
+      
+      // Wait for DOM to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeChart);
+      } else {
+        // DOM is already ready, but wait a tick to ensure canvas is rendered
+        setTimeout(initializeChart, 0);
+      }
+    });
+    
+    function initializeChart() {
+      ctx = document.getElementById('chart');
+      if (!ctx) {
+        console.error('Canvas element not found, retrying...');
+        setTimeout(initializeChart, 100);
+        return;
+      }
+    
+    // Register zoom plugin if available
+    let zoomPluginAvailable = false;
+    try {
+      const zoomPlugin = window.ChartZoom || ChartZoom || (window.Chart && window.Chart.plugins && window.Chart.plugins.zoom);
+      
+      if (zoomPlugin) {
+        Chart.register(zoomPlugin);
+        zoomPluginAvailable = true;
+        console.log('Zoom plugin registered successfully');
+      } else {
+        console.warn('Zoom plugin not found. Panning will not work.');
+      }
+    } catch (e) {
+      console.error('Error registering zoom plugin:', e);
+    }
+    
+    chart = new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { 
+          mode: 'nearest', 
+          intersect: false,
+          includeInvisible: true
+        },
+        onHover: (event, activeElements) => {
+          if (event.native && event.native.target) {
+            event.native.target.style.cursor = 'grab';
+          }
+        },
+        scales: {
+          x: { 
+            grid: { color: '#374151' }, 
+            ticks: { color: '#9ca3af', font: { size: 11 } },
+            border: { color: '#374151' }
+          },
+          y: { 
+            grid: { color: '#374151' }, 
+            ticks: { color: '#9ca3af', font: { size: 11 } },
+            border: { color: '#374151' }
+          }
+        },
+        plugins: {
+          legend: { 
+            labels: { 
+              color: '#d1d5db',
+              font: { size: 12 },
+              usePointStyle: true,
+              padding: 12
+            },
+            position: 'top',
+            align: 'end'
+          },
+          zoom: zoomPluginAvailable ? {
+            limits: {
+              x: {min: 'original', max: 'original'},
+              y: {min: 'original', max: 'original'}
+            },
+            pan: {
+              enabled: true,
+              mode: 'xy',
+              modifierKey: null,
+              threshold: 5,
+            },
+            zoom: {
+              wheel: {
+                enabled: true,
+                modifierKey: null,
+                speed: 0.1,
+              },
+              pinch: {
+                enabled: true
+              },
+              drag: {
+                enabled: false,
+              },
+              mode: 'xy',
+            }
+          } : {}
+        }
+      }
+    });
+    
+    // Attach pan listeners after chart is created
+    attachPanListeners();
+    } // End of initializeChart function
+
+    // Track last projection method used
+    let lastProjectionMethod = null; // 'tetration' or 'snapshot'
+    let updateTimeout = null;
+    let selectedPrimeIndex = 6; // Default to 31 (index 6 in expanded array: 11,13,17,19,23,29,31)
+    const selectedProjCount = 12; // Fixed: 12 projections
+    const selectedHorizon = 240; // Fixed: 240 steps
+    const selectedBase = 3; // Fixed: 3 base seed
+    
+    // Horizon options
+    const HORIZON_OPTIONS = [50, 100, 150, 200, 240, 300, 400, 500, 750, 1000];
+    
+    // Base seed options
+    const BASE_OPTIONS = [
+      { value: 3, label: '3', description: 'Preferred - Recommended' },
+      { value: 2, label: '2', description: 'Enigma-style' }
+    ];
+
+    // Update prime depth from input value
+    function updatePrimeDepthFromInput(inputValue, source) {
+      const primeValue = parseInt(inputValue, 10);
+      
+      // Validate: must be a valid prime from PRIME_STOPS
+      const primeIndex = PRIME_STOPS.indexOf(primeValue);
+      if (primeIndex === -1) {
+        // Find closest valid prime
+        let closestIndex = 0;
+        let minDiff = Math.abs(PRIME_STOPS[0] - primeValue);
+        for (let i = 1; i < PRIME_STOPS.length; i++) {
+          const diff = Math.abs(PRIME_STOPS[i] - primeValue);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = i;
+          }
+        }
+        selectedPrimeIndex = closestIndex;
+        const closestPrime = PRIME_STOPS[closestIndex];
+        
+        // Update inputs with closest valid prime
+        if ($('primeDepthInput')) $('primeDepthInput').value = closestPrime;
+        if ($('primeDepthInputMobile')) $('primeDepthInputMobile').value = closestPrime;
+        
+        // Update labels
+        if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = closestPrime;
+        if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = closestPrime;
+        
+        return;
+      }
+      
+      // Valid prime found
+      selectedPrimeIndex = primeIndex;
+      
+      // Sync inputs
+      if (source !== 'desktop' && $('primeDepthInput')) {
+        $('primeDepthInput').value = primeValue;
+      }
+      if (source !== 'mobile' && $('primeDepthInputMobile')) {
+        $('primeDepthInputMobile').value = primeValue;
+      }
+      
+      // Update labels
+      if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = primeValue;
+      if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = primeValue;
+      
+      // Trigger auto-update if chart has data
+      debouncedAutoUpdate();
+    }
+    
+    // Initialize prime depth input handlers
+    function initializePrimeDepthInputs() {
+      const inputDesktop = $('primeDepthInput');
+      const inputMobile = $('primeDepthInputMobile');
+      
+      // Desktop input handler
+      if (inputDesktop) {
+        inputDesktop.addEventListener('input', (e) => {
+          updatePrimeDepthFromInput(e.target.value, 'desktop');
+        });
+        
+        inputDesktop.addEventListener('blur', (e) => {
+          // On blur, ensure value is valid
+          const value = parseInt(e.target.value, 10);
+          if (isNaN(value) || PRIME_STOPS.indexOf(value) === -1) {
+            // Reset to current selected prime
+            e.target.value = PRIME_STOPS[selectedPrimeIndex];
+          }
+        });
+      }
+      
+      // Mobile input handler
+      if (inputMobile) {
+        inputMobile.addEventListener('input', (e) => {
+          updatePrimeDepthFromInput(e.target.value, 'mobile');
+        });
+        
+        inputMobile.addEventListener('blur', (e) => {
+          // On blur, ensure value is valid
+          const value = parseInt(e.target.value, 10);
+          if (isNaN(value) || PRIME_STOPS.indexOf(value) === -1) {
+            // Reset to current selected prime
+            e.target.value = PRIME_STOPS[selectedPrimeIndex];
+          }
+        });
+      }
+      
+      // Set initial values
+      const initialPrime = PRIME_STOPS[selectedPrimeIndex];
+      if (inputDesktop) inputDesktop.value = initialPrime;
+      if (inputMobile) inputMobile.value = initialPrime;
+      if ($('depthPrimeLabel')) $('depthPrimeLabel').textContent = initialPrime;
+      if ($('depthPrimeLabelMobile')) $('depthPrimeLabelMobile').textContent = initialPrime;
+    }
+
+    // Set fixed values labels (no toggles needed)
+    function setFixedValueLabels() {
+      if ($('baseLabel')) $('baseLabel').textContent = selectedBase;
+      if ($('baseLabelMobile')) $('baseLabelMobile').textContent = selectedBase;
+      if ($('projCountLabel')) $('projCountLabel').textContent = selectedProjCount;
+      if ($('projCountLabelMobile')) $('projCountLabelMobile').textContent = selectedProjCount;
+      if ($('horizonLabel')) $('horizonLabel').textContent = selectedHorizon;
+      if ($('horizonLabelMobile')) $('horizonLabelMobile').textContent = selectedHorizon;
+    }
+
+    // Mobile Menu Functionality
+    function openMobileMenu() {
+      const overlay = document.getElementById('mobileMenuOverlay');
+      const panel = document.getElementById('mobileMenuPanel');
+      const btn = document.getElementById('mobileMenuBtn');
+      if (overlay && panel && btn) {
+        overlay.classList.add('active');
+        panel.classList.add('active');
+        btn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+    
+    function closeMobileMenu() {
+      const overlay = document.getElementById('mobileMenuOverlay');
+      const panel = document.getElementById('mobileMenuPanel');
+      const btn = document.getElementById('mobileMenuBtn');
+      if (overlay && panel && btn) {
+        overlay.classList.remove('active');
+        panel.classList.remove('active');
+        btn.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+    
+    // Mobile menu event listeners
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenuCloseBtn = document.getElementById('mobileMenuCloseBtn');
+    const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+    
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', openMobileMenu);
+    }
+    if (mobileMenuCloseBtn) {
+      mobileMenuCloseBtn.addEventListener('click', closeMobileMenu);
+    }
+    if (mobileMenuOverlay) {
+      mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+    }
+    
+    // Sync mobile and desktop inputs
+    function syncInputs() {
+      const tickerDesktop = $('ticker');
+      const tickerMobile = $('tickerMobile');
+      if (tickerDesktop && tickerMobile) {
+        tickerDesktop.addEventListener('input', () => {
+          tickerMobile.value = tickerDesktop.value;
+        });
+        tickerMobile.addEventListener('input', () => {
+          tickerDesktop.value = tickerMobile.value;
+        });
+      }
+    }
+    
+    // Initialize mobile toggles (no longer needed for prime depth - now using input)
+    function initializeMobileToggles() {
+      // Mobile toggles removed - prime depth now uses input field
+    }
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initializePrimeDepthInputs();
+        initializeMobileToggles();
+        setFixedValueLabels();
+        syncInputs();
+      });
+    } else {
+      initializePrimeDepthInputs();
+      initializeMobileToggles();
+      setFixedValueLabels();
+      syncInputs();
+    }
+
+    // Debounce function to prevent too many rapid updates
+    function debounce(func, wait) {
+      return function(...args) {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // Auto-update chart when settings change (if chart has data)
+    function autoUpdateChart() {
+      // Only auto-update if chart already has data
+      if (!chart.data.labels || chart.data.labels.length === 0) {
+        return;
+      }
+
+      // Only update if we have a symbol
+      const symbol = getSymbol();
+      if (!symbol) {
+        return;
+      }
+
+      // Use the last projection method that was used
+      if (lastProjectionMethod === 'tetration') {
+        tetrationProjection();
+      } else if (lastProjectionMethod === 'snapshot') {
+        snapshot();
+      }
+    }
+
+    // Debounced auto-update (500ms delay)
+    const debouncedAutoUpdate = debounce(autoUpdateChart, 500);
+
+    // Fixed values: base=3, count=12, horizon=240 (no toggles needed)
+
+    function color(i, alpha = 0.9) {
+      const hues = [210, 0, 40, 90, 140, 260, 300, 20, 170, 200, 280, 320, 45];
+      const h = hues[i % hues.length];
+      return `hsla(${h}, 85%, 60%, ${alpha})`;
+    }
+
+    function fromQ8(q8) { return q8 / 256.0; }
+
+    async function tetrationProjection() {
+      try {
+        lastProjectionMethod = 'tetration';
+        updateStatus(
+          '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"></div><span>Running tetration tower analysis with oscillation tracking...</span></div>',
+          'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center'
+        );
+        
+        let symbol = getSymbol();
+        
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
+        }
+        
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
+        const base = selectedBase;
+        const horizon = selectedHorizon;
+        const beta = 0.01; // Default beta value
+        const count = selectedProjCount;
+        const depthPrime = PRIME_STOPS[selectedPrimeIndex];
+
+        // Use centralized API routes (from PDF analysis principles)
+        let points = [];
+        let baseLabels = [];
+        try {
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
+          }
+          const hist = await histResp.json();
+          if (hist.error) {
+            throw new Error(hist.error);
+          }
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
+          baseLabels = timestamps.map(ts => {
+            try {
+              return new Date(ts * 1000).toLocaleDateString();
+            } catch (e) {
+              return ts.toString();
+            }
+          });
+          if (points.length === 0) {
+            points = [];
+            baseLabels = [];
+          }
+        } catch (histErr) {
+          console.warn('Could not fetch history:', histErr);
+          points = [];
+          baseLabels = [];
+        }
+
+        // Try multiple API paths as fallback
+        const tetrationPaths = [
+          `/api/tetration-projection`,
+          `/trading/api/tetration-projection`
+        ];
+        
+        let tetrationResp = null;
+        let lastTetrationError = null;
+        let lastTetrationUrl = null;
+        
+        for (const tetrationUrl of tetrationPaths) {
+          lastTetrationUrl = tetrationUrl; // Store for error logging
+          try {
+            console.log('Trying tetration URL:', tetrationUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            tetrationResp = await window.fetch(tetrationUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            });
+            
+            console.log('Tetration response status:', tetrationResp.status, tetrationResp.statusText);
+            
+            if (tetrationResp.ok) {
+              console.log('Successfully fetched from:', tetrationUrl);
+              break; // Success, exit loop
+            } else if (tetrationResp.status === 404) {
+              console.warn('404 from:', tetrationUrl, '- trying next path...');
+              lastTetrationError = `HTTP ${tetrationResp.status}: ${tetrationResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', tetrationUrl, fetchErr.message);
+            lastTetrationError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!tetrationResp || !tetrationResp.ok) {
+          const errorText = await tetrationResp?.text().catch(() => tetrationResp?.statusText || lastTetrationError || 'Unknown error');
+          console.error('Tetration error after trying all paths:', {
+            status: tetrationResp?.status,
+            statusText: tetrationResp?.statusText,
+            errorText: errorText,
+            url: lastTetrationUrl || 'Unknown URL'
+          });
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${tetrationResp?.status || 'Network'}: ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}` };
+          }
+          // Prefer details field, then error field, then message field
+          const serverError = errorData.details || errorData.error || errorData.message;
+          throw new Error(serverError || `Server error (${tetrationResp?.status || 'Network'}): ${tetrationResp?.statusText || lastTetrationError || 'Failed to fetch'}`);
+        }
+        
+        const tetration = await tetrationResp.json();
+        if (tetration.error) throw new Error(tetration.error);
+
+        const lastPrice = fromQ8(tetration.lastPriceQ8);
+        const labels = [...baseLabels];
+        for (let i = 1; i <= horizon; i++) labels.push(`+${i}`);
+
+        const datasets = [];
+
+        if (points.length > 0) {
+          datasets.push({
+            label: `${symbol} (history)`,
+            data: [
+              ...points.slice(-Math.min(60, points.length)),
+              ...Array(horizon).fill(null)
+            ],
+            borderColor: '#9ea7bd',
+            backgroundColor: '#9ea7bd',
+            borderWidth: 1.5,
+            pointRadius: 0
+          });
+        }
+
+        const lastSegment = Array(horizon).fill(lastPrice);
+        datasets.push({
+          label: 'Last price',
+          data: [
+            ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+            ...lastSegment
+          ],
+          borderDash: [4, 4],
+          borderColor: 'rgba(255,255,255,0.35)',
+          backgroundColor: 'rgba(255,255,255,0.35)',
+          pointRadius: 0
+        });
+
+        tetration.lines.forEach((line, i) => {
+          const proj = line.pointsQ8.map(fromQ8);
+          const heightLabel = line.towerHeight ? ` (H${line.towerHeight})` : '';
+          datasets.push({
+            label: `Tower ${line.tower.slice(0, 3).join('-')}${heightLabel}`,
+            data: [
+              ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+              ...proj
+            ],
+            borderColor: color(i),
+            backgroundColor: color(i, 0.18),
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0
+          });
+        });
+
+        chart.data.labels = labels;
+        chart.data.datasets = datasets;
+        chart.update('none');
+        
+        if (chartInstructions) {
+          chartInstructions.style.display = 'none';
+        }
+
+        // Display oscillation metrics
+        const oscMetrics = $('oscillationMetrics');
+        const oscMetricsMobile = $('oscillationMetricsMobile');
+        if (tetration.oscillationAnalysis) {
+          const osc = tetration.oscillationAnalysis;
+          const quadPattern = osc.quadraticPattern.toFixed(6);
+          const entropyVal = osc.entropy.toFixed(4);
+          const anchorDims = osc.anchors.map(a => `φ${a.dimension}(${a.phi})`).join(', ') || 'None';
+          const orbitalPrimes = tetration.orbitalPrimes ? tetration.orbitalPrimes.join(', ') : 'None';
+          
+          // Update desktop
+          if ($('quadraticPattern')) $('quadraticPattern').textContent = quadPattern;
+          if ($('entropy')) $('entropy').textContent = entropyVal;
+          if ($('anchorDims')) $('anchorDims').textContent = anchorDims;
+          if ($('orbitalPrimes')) $('orbitalPrimes').textContent = orbitalPrimes;
+          if (oscMetrics) oscMetrics.classList.remove('hidden');
+          
+          // Update mobile
+          if ($('quadraticPatternMobile')) $('quadraticPatternMobile').textContent = quadPattern;
+          if ($('entropyMobile')) $('entropyMobile').textContent = entropyVal;
+          if ($('anchorDimsMobile')) $('anchorDimsMobile').textContent = anchorDims;
+          if ($('orbitalPrimesMobile')) $('orbitalPrimesMobile').textContent = orbitalPrimes;
+          if (oscMetricsMobile) oscMetricsMobile.classList.remove('hidden');
+        }
+
+        const anchorInfo = tetration.oscillationAnalysis?.anchors.map(a => `φ${a.dimension}`).join(', ') || 'None';
+        const towerHeightInfo = tetration.towerHeight ? ` | Tower Height: ${tetration.towerHeight.toFixed(1)}` : '';
+        const orbitalInfo = tetration.orbitalPrimes ? ` | Orbital Primes: ${tetration.orbitalPrimes.join(', ')}` : '';
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-purple-300">Tetration projection complete!</div><div class="text-xs text-purple-400/80 mt-1">Depth prime: ${tetration.primesDepthUsed}${towerHeightInfo}${orbitalInfo} | Anchors: ${anchorInfo}</div><div class="text-xs text-gray-400 mt-2">Quadratic: ${tetration.oscillationAnalysis?.quadraticPattern.toFixed(6)} | Entropy: ${tetration.oscillationAnalysis?.entropy.toFixed(4)}</div></div></div>`,
+          'p-4 bg-purple-900/20 border border-purple-700 rounded-lg text-sm text-purple-300 min-h-[60px] flex items-center'
+        );
+      } catch (e) {
+        console.error('Tetration projection error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
+        let errorMessage = e.message || 'An unknown error occurred';
+        
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
+          errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
+        }
+        
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`,
+          'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
+        );
+      }
+    }
+
+    async function snapshot() {
+      try {
+        lastProjectionMethod = 'snapshot';
+        updateStatus(
+          '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div><span>Running snapshot analysis...</span></div>',
+          'p-4 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300 min-h-[60px] flex items-center'
+        );
+        
+        let symbol = getSymbol();
+        
+        // CRITICAL: Validate symbol format before sending request
+        // This prevents "variable is not defined" errors and 400 Bad Request loops
+        if (!symbol || typeof symbol !== 'string' || symbol.length === 0) {
+          throw new Error('Please enter a valid stock symbol (e.g., AAPL, MSFT, TSLA)');
+        }
+        
+        // Validate symbol format - alphanumeric with optional dots/dashes, 1-10 characters
+        // Must start with a letter (standard ticker format)
+        const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+        if (!symbolPattern.test(symbol)) {
+          throw new Error('Invalid stock symbol format. Use 1-10 alphanumeric characters starting with a letter (may include dots or dashes). Examples: AAPL, MSFT, BRK.B');
+        }
+        
+        // Remove any invalid characters as final sanitization
+        symbol = symbol.replace(/[^A-Z0-9.-]/g, '');
+        if (symbol.length === 0 || symbol.length > 10) {
+          throw new Error('Invalid symbol format. Use 1-10 alphanumeric characters (e.g., AAPL, TSLA, MSFT)');
+        }
+        const base = selectedBase;
+        const horizon = selectedHorizon;
+        const beta = 0.01; // Default beta value
+        const count = selectedProjCount;
+        const depthPrime = PRIME_STOPS[selectedPrimeIndex];
+
+        // Use centralized API routes (from PDF analysis principles)
+        let points = [];
+        let baseLabels = [];
+        try {
+          // Try multiple API paths as fallback for history
+          const historyPaths = [
+            apiRoutes.history(symbol, '1mo', '1d'),
+            `/trading${apiRoutes.history(symbol, '1mo', '1d')}`
+          ];
+          
+          let histResp = null;
+          for (const historyUrl of historyPaths) {
+            try {
+              console.log('Trying history URL:', historyUrl);
+              histResp = await apiFetch(historyUrl, { method: 'GET' }, 3);
+              if (histResp.ok) {
+                console.log('Successfully fetched history from:', historyUrl);
+                break;
+              } else if (histResp.status === 404) {
+                console.warn('404 from:', historyUrl, '- trying next path...');
+                continue;
+              } else {
+                break; // Non-404 error, don't retry
+              }
+            } catch (fetchErr) {
+              console.warn('Fetch error for:', historyUrl, fetchErr.message);
+              continue;
+            }
+          }
+          
+          if (!histResp || !histResp.ok) {
+            const errorText = await histResp?.text().catch(() => histResp?.statusText || 'Unknown error');
+            throw new Error(`HTTP ${histResp?.status || 'Network'}: ${errorText || histResp?.statusText || 'Failed to fetch'}`);
+          }
+          const hist = await histResp.json();
+          if (hist.error) {
+            throw new Error(hist.error);
+          }
+          
+          // Handle Finnhub response format: { result: [{ timestamp: [], indicators: { quote: [{ close: [] }] } }] }
+          // Or direct format from our server
+          let timestamps = [];
+          if (hist.result && Array.isArray(hist.result) && hist.result.length > 0) {
+            points = hist.result[0]?.indicators?.quote?.[0]?.close || [];
+            timestamps = hist.result[0]?.timestamp || [];
+          } else {
+            // Fallback: try direct format
+            points = hist.close || hist.c || [];
+            timestamps = hist.timestamp || hist.t || [];
+          }
+          
+          baseLabels = timestamps.map(ts => {
+            try {
+              return new Date(ts * 1000).toLocaleDateString();
+            } catch (e) {
+              return ts.toString();
+            }
+          });
+          if (points.length === 0) {
+            points = [];
+            baseLabels = [];
+          }
+        } catch (histErr) {
+          console.warn('Could not fetch history:', histErr);
+          points = [];
+          baseLabels = [];
+        }
+
+        // Try multiple API paths as fallback using centralized routes
+        const apiPaths = [
+          apiRoutes.snapshot(),
+          `/trading${apiRoutes.snapshot()}`
+        ];
+        
+        let snapResp = null;
+        let lastError = null;
+        let lastSnapshotUrl = null;
+        
+        for (const snapshotUrl of apiPaths) {
+          lastSnapshotUrl = snapshotUrl; // Store for error logging
+          try {
+            console.log('Trying snapshot URL:', snapshotUrl);
+            console.log('Request body:', { symbol, base, depthPrime, horizon, count, beta });
+            
+            snapResp = await apiFetch(snapshotUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol, base, depthPrime, horizon, count, beta })
+            }, 3);
+            
+            console.log('Snapshot response status:', snapResp.status, snapResp.statusText);
+            
+            if (snapResp.ok) {
+              console.log('Successfully fetched from:', snapshotUrl);
+              break; // Success, exit loop
+            } else if (snapResp.status === 404) {
+              console.warn('404 from:', snapshotUrl, '- trying next path...');
+              lastError = `HTTP ${snapResp.status}: ${snapResp.statusText}`;
+              continue; // Try next path
+            } else {
+              // Non-404 error, don't retry
+              break;
+            }
+          } catch (fetchErr) {
+            console.warn('Fetch error for:', snapshotUrl, fetchErr.message);
+            lastError = fetchErr.message;
+            continue; // Try next path
+          }
+        }
+        
+        if (!snapResp || !snapResp.ok) {
+          const errorText = await snapResp?.text().catch(() => snapResp?.statusText || lastError || 'Unknown error');
+          console.error('Snapshot error after trying all paths:', {
+            status: snapResp?.status,
+            statusText: snapResp?.statusText,
+            errorText: errorText,
+            url: lastSnapshotUrl || 'Unknown URL'
+          });
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${snapResp?.status || 'Network'}: ${snapResp?.statusText || lastError || 'Failed to fetch'}` };
+          }
+          // Prefer hint field (user-friendly), then error field, then details field
+          const serverError = errorData.hint || errorData.error || errorData.details || errorData.message;
+          const err = new Error(serverError || `Server error (${snapResp?.status || 'Network'}): ${snapResp?.statusText || lastError || 'Failed to fetch'}`);
+          err.status = snapResp?.status;
+          err.errorData = errorData;
+          throw err;
+        }
+        
+        const snap = await snapResp.json();
+        if (snap.error) throw new Error(snap.error);
+
+        const lastPrice = fromQ8(snap.lastPriceQ8);
+        const labels = [...baseLabels];
+        for (let i = 1; i <= horizon; i++) labels.push(`+${i}`);
+
+        const datasets = [];
+
+        if (points.length > 0) {
+          datasets.push({
+            label: `${symbol} (history)`,
+            data: [
+              ...points.slice(-Math.min(60, points.length)),
+              ...Array(horizon).fill(null)
+            ],
+            borderColor: '#9ea7bd',
+            backgroundColor: '#9ea7bd',
+            borderWidth: 1.5,
+            pointRadius: 0
+          });
+        }
+
+        const lastSegment = Array(horizon).fill(lastPrice);
+        datasets.push({
+          label: 'Last price',
+          data: [
+            ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+            ...lastSegment
+          ],
+          borderDash: [4, 4],
+          borderColor: 'rgba(255,255,255,0.35)',
+          backgroundColor: 'rgba(255,255,255,0.35)',
+          pointRadius: 0
+        });
+
+        snap.lines.forEach((line, i) => {
+          const proj = line.pointsQ8.map(fromQ8);
+          datasets.push({
+            label: `Triad ${line.triad.join('-')}`,
+            data: [
+              ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
+              ...proj
+            ],
+            borderColor: color(i),
+            backgroundColor: color(i, 0.18),
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0
+          });
+        });
+
+        chart.data.labels = labels;
+        chart.data.datasets = datasets;
+        chart.update('none');
+        
+        // Hide instructions
+        if (chartInstructions) {
+          chartInstructions.style.display = 'none';
+        }
+
+        const osc = snap.lines.map((l, i) => `L${i+1}[${l.triad.join('-')}] zc=${l.zeroCrossings}, tp=${l.turningPoints}`).join(' | ');
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-green-300">Snapshot complete!</div><div class="text-xs text-green-400/80 mt-1">Depth prime: ${snap.primesDepthUsed}</div><div class="text-xs text-gray-400 mt-2">${osc}</div></div></div>`,
+          'p-4 bg-green-900/20 border border-green-700 rounded-lg text-sm text-green-300 min-h-[60px] flex items-center'
+        );
+      } catch (e) {
+        console.error('Tetration projection error:', e);
+        console.error('Error details:', {
+          message: e.message,
+          stack: e.stack,
+          name: e.name
+        });
+        
+        // Use the actual error message from the server if available
+        let errorMessage = e.message || 'An unknown error occurred';
+        
+        // Only replace truly generic messages, preserve specific error messages
+        if (errorMessage.includes('Invalid stock symbol or API error') && 
+            !errorMessage.includes('No price data') && 
+            !errorMessage.includes('rate limit') &&
+            !errorMessage.includes('timeout') &&
+            !errorMessage.includes('Finnhub API')) {
+          errorMessage = 'Unable to fetch stock data. Please verify the symbol is correct and try again. If the problem persists, the API may be temporarily unavailable.';
+        }
+        
+        updateStatus(
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Error</div><div class="text-xs text-red-400/80 mt-1">${errorMessage}</div><div class="text-xs text-gray-500 mt-1">Check browser console for details</div></div></div>`,
+          'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
+        );
+      }
+    }
+
+    // Helper function to sync status between desktop and mobile
+    function updateStatus(html, className) {
+      const statusDesktop = $('status');
+      const statusMobile = $('statusMobile');
+      if (statusDesktop) {
+        statusDesktop.innerHTML = html;
+        statusDesktop.className = className;
+      }
+      if (statusMobile) {
+        statusMobile.innerHTML = html;
+        statusMobile.className = className;
+      }
+    }
+    
+    // Helper function to get symbol from either input
+    function getSymbol() {
+      const tickerDesktop = $('ticker');
+      const tickerMobile = $('tickerMobile');
+      if (tickerDesktop && tickerDesktop.value) {
+        return tickerDesktop.value.trim().toUpperCase();
+      }
+      if (tickerMobile && tickerMobile.value) {
+        return tickerMobile.value.trim().toUpperCase();
+      }
+      return 'AAPL'; // Default
+    }
+    
+    $('tetrationBtn').addEventListener('click', tetrationProjection);
+    $('snapshotBtn').addEventListener('click', snapshot);
+    $('clearBtn').addEventListener('click', () => {
+      chart.data.labels = [];
+      chart.data.datasets = [];
+      chart.update();
+      if (chartInstructions) {
+        chartInstructions.style.display = 'flex';
+      }
+      const oscMetrics = $('oscillationMetrics');
+      const oscMetricsMobile = $('oscillationMetricsMobile');
+      if (oscMetrics) {
+        oscMetrics.classList.add('hidden');
+      }
+      if (oscMetricsMobile) {
+        oscMetricsMobile.classList.add('hidden');
+      }
+      const statusHtml = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>Chart cleared. Ready for new projection.</span></div>';
+      const statusClass = 'p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center';
+      updateStatus(statusHtml, statusClass);
+    });
+    
+    // Mobile button event listeners
+    const tetrationBtnMobile = $('tetrationBtnMobile');
+    const snapshotBtnMobile = $('snapshotBtnMobile');
+    const clearBtnMobile = $('clearBtnMobile');
+    
+    if (tetrationBtnMobile) {
+      tetrationBtnMobile.addEventListener('click', () => {
+        closeMobileMenu();
+        tetrationProjection();
+      });
+    }
+    if (snapshotBtnMobile) {
+      snapshotBtnMobile.addEventListener('click', () => {
+        closeMobileMenu();
+        snapshot();
+      });
+    }
+    if (clearBtnMobile) {
+      clearBtnMobile.addEventListener('click', () => {
+        chart.data.labels = [];
+        chart.data.datasets = [];
+        chart.update();
+        if (chartInstructions) {
+          chartInstructions.style.display = 'flex';
+        }
+        const oscMetrics = $('oscillationMetrics');
+        const oscMetricsMobile = $('oscillationMetricsMobile');
+        if (oscMetrics) {
+          oscMetrics.classList.add('hidden');
+        }
+        if (oscMetricsMobile) {
+          oscMetricsMobile.classList.add('hidden');
+        }
+        const statusHtml = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>Chart cleared. Ready for new projection.</span></div>';
+        const statusClass = 'p-4 bg-gray-700/30 border border-gray-600 rounded-lg text-sm text-gray-300 min-h-[60px] flex items-center';
+        updateStatus(statusHtml, statusClass);
+        closeMobileMenu();
+      });
+    }
+    
+    // Zoom in button
+    $('zoomInBtn').addEventListener('click', () => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      try {
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (!xScale || !yScale) return;
+        const centerX = (xScale.max + xScale.min) / 2;
+        const centerY = (yScale.max + yScale.min) / 2;
+        const rangeX = xScale.max - xScale.min;
+        const rangeY = yScale.max - yScale.min;
+        const zoomFactor = 0.8;
+        const newRangeX = Math.max(rangeX * zoomFactor, 1);
+        const newRangeY = Math.max(rangeY * zoomFactor, 0.01);
+        if (xScale.options) {
+          xScale.options.min = centerX - newRangeX / 2;
+          xScale.options.max = centerX + newRangeX / 2;
+        }
+        if (yScale.options) {
+          yScale.options.min = centerY - newRangeY / 2;
+          yScale.options.max = centerY + newRangeY / 2;
+        }
+        chart.update('none');
+      } catch (e) {
+        console.warn('Zoom in error:', e);
+      }
+    });
+
+    // Zoom out button
+    $('zoomOutBtn').addEventListener('click', () => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      try {
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (!xScale || !yScale) return;
+        const centerX = (xScale.max + xScale.min) / 2;
+        const centerY = (yScale.max + yScale.min) / 2;
+        const rangeX = xScale.max - xScale.min;
+        const rangeY = yScale.max - yScale.min;
+        const zoomFactor = 1.25;
+        const newRangeX = rangeX * zoomFactor;
+        const newRangeY = rangeY * zoomFactor;
+        if (xScale.options) {
+          xScale.options.min = centerX - newRangeX / 2;
+          xScale.options.max = centerX + newRangeX / 2;
+        }
+        if (yScale.options) {
+          yScale.options.min = centerY - newRangeY / 2;
+          yScale.options.max = centerY + newRangeY / 2;
+        }
+        chart.update('none');
+      } catch (e) {
+        console.warn('Zoom out error:', e);
+      }
+    });
+
+    // Manual panning - only attach listeners if ctx is available
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartXMin = 0;
+    let panStartXMax = 0;
+    let panStartYMin = 0;
+    let panStartYMax = 0;
+
+    // Attach event listeners only after ctx is initialized
+    function attachPanListeners() {
+      // Get ctx fresh each time to ensure it's available
+      const canvasElement = document.getElementById('chart');
+      if (!canvasElement) {
+        console.warn('Canvas element not available for pan listeners');
+        return;
+      }
+      
+      // Use the canvas element directly
+      const canvasCtx = canvasElement;
+
+    canvasCtx.addEventListener('mousedown', (e) => {
+      if (!chart.data.labels || chart.data.labels.length === 0) return;
+      const rect = canvasCtx.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+        isPanning = true;
+        panStartX = x;
+        panStartY = y;
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (xScale && yScale) {
+          panStartXMin = xScale.min;
+          panStartXMax = xScale.max;
+          panStartYMin = yScale.min;
+          panStartYMax = yScale.max;
+        }
+        canvasCtx.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+
+    ctx.addEventListener('mousemove', (e) => {
+      if (!isPanning || !chart.data.labels || chart.data.labels.length === 0) return;
+      const rect = canvasCtx.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      if (xScale && yScale) {
+        const deltaX = panStartX - x;
+        const deltaY = panStartY - y;
+        const xRange = panStartXMax - panStartXMin;
+        const yRange = panStartYMax - panStartYMin;
+        const xRatio = deltaX / rect.width;
+        const yRatio = deltaY / rect.height;
+        xScale.options.min = panStartXMin + (xRatio * xRange);
+        xScale.options.max = panStartXMax + (xRatio * xRange);
+        yScale.options.min = panStartYMin - (yRatio * yRange);
+        yScale.options.max = panStartYMax - (yRatio * yRange);
+        chart.update('none');
+      }
+      e.preventDefault();
+    });
+
+    ctx.addEventListener('mouseup', () => {
+      if (isPanning) {
+        isPanning = false;
+        canvasCtx.style.cursor = 'grab';
+      }
+    });
+
+    ctx.addEventListener('mouseleave', () => {
+      if (isPanning) {
+        isPanning = false;
+        canvasCtx.style.cursor = 'grab';
+      }
+    });
+    }
+
+    // Call attachPanListeners after chart is initialized
+    // This will be called from initializeChart after the chart is created
+
+    $('resetZoomBtn').addEventListener('click', () => {
+      try {
+        if (!chart.data.labels || chart.data.labels.length === 0) {
+          console.log('No chart data to reset');
+          return;
+        }
+        if (typeof chart.resetZoom === 'function') {
+          chart.resetZoom();
+          chart.update('none');
+          console.log('Reset via zoom plugin');
+          return;
+        }
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        if (xScale) {
+          if (xScale.options) {
+            delete xScale.options.min;
+            delete xScale.options.max;
+          }
+          xScale.min = undefined;
+          xScale.max = undefined;
+          xScale._suggestedMin = undefined;
+          xScale._suggestedMax = undefined;
+        }
+        if (yScale) {
+          if (yScale.options) {
+            delete yScale.options.min;
+            delete yScale.options.max;
+          }
+          yScale.min = undefined;
+          yScale.max = undefined;
+          yScale._suggestedMin = undefined;
+          yScale._suggestedMax = undefined;
+        }
+        chart.reset();
+        chart.update('none');
+        setTimeout(() => {
+          if (xScale && (xScale.options.min !== undefined || xScale.options.max !== undefined)) {
+            delete xScale.options.min;
+            delete xScale.options.max;
+            chart.update('none');
+          }
+          if (yScale && (yScale.options.min !== undefined || yScale.options.max !== undefined)) {
+            delete yScale.options.min;
+            delete yScale.options.max;
+            chart.update('none');
+          }
+        }, 10);
+        console.log('Chart reset complete (manual method)');
+      } catch (e) {
+        console.error('Error resetting chart:', e);
+        try {
+          chart.reset();
+          chart.update('none');
+        } catch (fallbackError) {
+          console.error('Fallback reset also failed:', fallbackError);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "trading-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-zoom": "^2.2.0",
+    "preline": "^3.2.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.18"
+  }
+}
+
