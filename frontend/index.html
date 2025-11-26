@@ -7,41 +7,48 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1e293b">
-  <!-- Base path will be set dynamically based on environment -->
-  <base href="/frontend/">
   
-  <!-- Tailwind CSS -->
-  <link href="/frontend/css/tailwind.css" rel="stylesheet">
+  <!-- Set base path - will be updated by script below if needed -->
+  <base href="/trading/" id="base-href">
   
-  <!-- Chart.js - Local from node_modules -->
-  <script src="/frontend/node_modules/chart.js/dist/chart.umd.min.js"></script>
-  <script src="/frontend/node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
-  
-  <!-- Preline UI - Local from node_modules -->
-  <script src="/frontend/node_modules/preline/dist/preline.js"></script>
-  
-  <!-- Auto-detect and update base path for production -->
+  <!-- Auto-detect environment and update base + paths BEFORE resources load -->
   <script>
+    // CRITICAL: This must run synchronously before any resources load
     (function() {
-      const path = window.location.pathname;
-      if (path.includes('/trading/')) {
-        // Production environment - update base href and all paths
-        const base = document.querySelector('base');
-        if (base) base.href = '/trading/';
+      try {
+        var path = window.location.pathname || '';
+        var hostname = window.location.hostname || '';
+        var isProduction = path.indexOf('/trading/') !== -1 || 
+                          (hostname.indexOf('localhost') === -1 && hostname !== '127.0.0.1' && hostname !== '');
         
-        // Update CSS link
-        const cssLink = document.querySelector('link[href*="tailwind.css"]');
-        if (cssLink) cssLink.href = '/trading/css/tailwind.css';
-        
-        // Update script sources
-        document.querySelectorAll('script[src*="node_modules"]').forEach(script => {
-          if (script.src.includes('/frontend/')) {
-            script.src = script.src.replace('/frontend/', '/trading/');
+        // Update base tag immediately if in development
+        if (!isProduction) {
+          var baseEl = document.getElementById('base-href');
+          if (baseEl) {
+            baseEl.href = '/frontend/';
           }
-        });
+        }
+        
+        // Store for later use
+        window.__BASE_PATH__ = isProduction ? '/trading/' : '/frontend/';
+        window.__IS_PRODUCTION__ = isProduction;
+        
+        // Also update any already-parsed link/script tags (fallback)
+        if (!isProduction && document.readyState === 'loading') {
+          // Resources haven't loaded yet, we're good
+        }
+      } catch (e) {
+        console.error('Base path detection error:', e);
+        window.__BASE_PATH__ = '/trading/'; // Default to production
       }
     })();
   </script>
+  
+  <!-- Resources use relative paths - will resolve via base href -->
+  <link href="css/tailwind.css" rel="stylesheet">
+  <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
+  <script src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="node_modules/preline/dist/preline.js"></script>
   
   <style>
     canvas {
@@ -862,8 +869,14 @@
     
     // Detect base path for API routes (production vs development)
     const getBasePath = () => {
+      // Use stored base path if available, otherwise detect from URL
+      if (window.__BASE_PATH__) {
+        return window.__BASE_PATH__.replace(/\/$/, ''); // Remove trailing slash
+      }
       const path = window.location.pathname;
-      return path.includes('/trading/') ? '/trading' : '';
+      const hostname = window.location.hostname;
+      const isProduction = path.includes('/trading/') || (hostname !== 'localhost' && hostname !== '127.0.0.1');
+      return isProduction ? '/trading' : '';
     };
     
     // Centralized API routes (from PDF analysis principles)
