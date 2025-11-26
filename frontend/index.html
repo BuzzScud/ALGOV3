@@ -861,14 +861,12 @@
     }
     
     // Detect base path for API routes (production vs development)
+    // API routes should NOT include /frontend/ - they're served from root or /trading/
     const getBasePath = () => {
-      // Use stored base path if available, otherwise detect from URL
-      if (window.__BASE_PATH__) {
-        return window.__BASE_PATH__.replace(/\/$/, ''); // Remove trailing slash
-      }
-      const path = window.location.pathname;
-      const hostname = window.location.hostname;
-      const isProduction = path.includes('/trading/') || (hostname !== 'localhost' && hostname !== '127.0.0.1');
+      const path = window.location.pathname || '';
+      const hostname = window.location.hostname || '';
+      // Only add /trading prefix if we're actually on production (voynich.online) with /trading/ path
+      const isProduction = (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '') || path.includes('/trading/');
       return isProduction ? '/trading' : '';
     };
     
@@ -883,7 +881,8 @@
     };
     
     // Enhanced API fetch with retry, error handling, and URL validation
-    async function apiFetch(path, options = {}, maxRetries = 3) {
+    // Added timeout and better error handling to prevent infinite loops
+    async function apiFetch(path, options = {}, maxRetries = 2) {
       // Validate path is not null/undefined
       if (!path || path === 'null' || path === 'undefined') {
         throw new Error(`Invalid API path: ${path}`);
@@ -896,6 +895,9 @@
       if (!url || url.trim() === '') {
         throw new Error('API URL is empty or invalid');
       }
+      
+      // Add timeout to prevent hanging requests
+      const timeout = options.timeout || 10000; // 10 second timeout
       
       // Add default headers
       const headers = new Headers(options.headers || {});
@@ -1295,7 +1297,16 @@
     }
     
     // Function to search for stock symbol
+    // Prevent multiple simultaneous searches
+    let isSearching = false;
+    
     async function searchStock() {
+      // Prevent concurrent searches
+      if (isSearching) {
+        console.log('Search already in progress, ignoring duplicate request');
+        return;
+      }
+      
       const symbol = getSymbol();
       if (!symbol || symbol.trim().length === 0) {
         updateStatus(
@@ -1307,6 +1318,18 @@
       
       const normalizedSymbol = symbol.trim().toUpperCase();
       
+      // Validate symbol format
+      const symbolPattern = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+      if (!symbolPattern.test(normalizedSymbol)) {
+        updateStatus(
+          '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><div><div class="font-medium text-yellow-300">Invalid symbol format</div><div class="text-xs text-yellow-400/80 mt-1">Use 1-10 alphanumeric characters starting with a letter (e.g., AAPL, MSFT, BRK.B)</div></div></div>',
+          'p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg text-sm text-yellow-300 min-h-[60px] flex items-center'
+        );
+        return;
+      }
+      
+      isSearching = true;
+      
       // Update status to show loading
       updateStatus(
         '<div class="flex items-center gap-3"><div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div><span>Searching for stock symbol...</span></div>',
@@ -1314,8 +1337,11 @@
       );
       
       try {
-        // Fetch and display stock info
-        await fetchAndDisplayStockInfo(normalizedSymbol);
+        // Fetch and display stock info with timeout
+        await Promise.race([
+          fetchAndDisplayStockInfo(normalizedSymbol),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 15000))
+        ]);
         
         // Update status to show success
         updateStatus(
@@ -1327,10 +1353,14 @@
         currentSymbol = normalizedSymbol;
       } catch (err) {
         console.error('Stock search error:', err);
+        const errorMsg = err.message || 'Unable to find stock symbol. Please check the symbol and try again.';
         updateStatus(
-          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Search failed</div><div class="text-xs text-red-400/80 mt-1">${err.message || 'Unable to find stock symbol. Please check the symbol and try again.'}</div></div></div>`,
+          `<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><div><div class="font-medium text-red-300">Search failed</div><div class="text-xs text-red-400/80 mt-1">${errorMsg}</div></div></div>`,
           'p-4 bg-red-900/20 border border-red-700 rounded-lg text-sm text-red-300 min-h-[60px] flex items-center'
         );
+      } finally {
+        // Always reset searching flag
+        isSearching = false;
       }
     }
     
@@ -2079,32 +2109,36 @@
         return;
       }
       
-      console.log('Fetching stock info for symbol:', symbol);
+      // Validate and normalize symbol
+      if (!symbol || typeof symbol !== 'string' || symbol.trim().length === 0) {
+        throw new Error('Invalid stock symbol');
+      }
+      
+      const normalizedSymbol = symbol.trim().toUpperCase();
+      console.log('Fetching stock info for symbol:', normalizedSymbol);
       
       try {
-        const quoteUrl = apiRoutes.quote(symbol, '1d');
-        const quotePaths = [quoteUrl, `/trading${quoteUrl}`];
+        // Use centralized API route (already handles base path)
+        const quoteUrl = apiRoutes.quote(normalizedSymbol, '1d');
+        console.log('Fetching quote from:', quoteUrl);
         
-        let quoteResp = null;
-        let lastError = null;
-        for (const quotePath of quotePaths) {
-          try {
-            console.log('Trying quote path:', quotePath);
-            quoteResp = await apiFetch(quotePath, { method: 'GET' }, 2);
-            if (quoteResp && quoteResp.ok) {
-              console.log('Successfully fetched quote from:', quotePath);
-              break;
-            }
-          } catch (e) {
-            console.warn('Error fetching from', quotePath, ':', e.message);
-            lastError = e;
-            continue;
-          }
-        }
+        // Single fetch attempt with timeout to prevent hanging
+        const fetchPromise = apiFetch(quoteUrl, { method: 'GET' }, 1); // Only 1 retry
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout after 10 seconds')), 10000)
+        );
+        
+        const quoteResp = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (!quoteResp || !quoteResp.ok) {
-          const errorMsg = lastError ? lastError.message : `HTTP ${quoteResp?.status || 'Unknown'}`;
-          console.error('Failed to fetch quote:', errorMsg);
+          const errorText = await quoteResp?.text().catch(() => quoteResp?.statusText || 'Unknown error');
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText };
+          }
+          const errorMsg = errorData.error || errorData.message || `HTTP ${quoteResp?.status || 'Unknown'}`;
           throw new Error(`Failed to fetch quote: ${errorMsg}`);
         }
         
@@ -2146,8 +2180,8 @@
         };
         
         // Update desktop elements
-        updateElement('stockSymbol', symbol);
-        updateElement('stockName', quote.longName || quote.name || '');
+        updateElement('stockSymbol', normalizedSymbol);
+        updateElement('stockName', quote.longName || quote.name || normalizedSymbol);
         updateElement('stockPrice', formatPrice(price));
         updateElement('stockChange', formatChange(change), `text-sm font-medium ${changeColor}`);
         updateElement('stockChangePercent', formatChangePercent(changePercent), `text-sm font-medium ${changeColor}`);
@@ -2157,8 +2191,8 @@
         updateElement('stockLow', formatPrice(low));
         
         // Update mobile elements
-        updateElement('stockSymbolMobile', symbol);
-        updateElement('stockNameMobile', quote.longName || quote.name || '');
+        updateElement('stockSymbolMobile', normalizedSymbol);
+        updateElement('stockNameMobile', quote.longName || quote.name || normalizedSymbol);
         updateElement('stockPriceMobile', formatPrice(price));
         updateElement('stockChangeMobile', formatChange(change), `text-sm font-medium ${changeColor}`);
         updateElement('stockChangePercentMobile', formatChangePercent(changePercent), `text-sm font-medium ${changeColor}`);
@@ -2181,11 +2215,13 @@
         console.error('Error details:', {
           message: e.message,
           stack: e.stack,
-          symbol: symbol
+          symbol: normalizedSymbol
         });
         // Hide stock info on error
         if (stockInfoEl) stockInfoEl.classList.add('hidden');
         if (stockInfoMobileEl) stockInfoMobileEl.classList.add('hidden');
+        // Re-throw error so caller can handle it
+        throw e;
       }
     }
     
