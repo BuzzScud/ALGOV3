@@ -83,6 +83,7 @@ app.use((req, res, next) => {
 // Serve static files (HTML, CSS, JS)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const projectRoot = dirname(__dirname); // Parent directory (project root)
 
 // Finnhub API configuration
 const FINNHUB_API_KEY = 'd18ueuhr01qkcat4uip0d18ueuhr01qkcat4uipg';
@@ -2120,9 +2121,9 @@ app.use('/trading/node_modules', express.static(nodeModulesPath, {
   }
 }));
 
-// Serve other static files
-app.use(express.static(__dirname));
-app.use('/trading', express.static(__dirname));
+// Serve other static files from project root (where frontend is located)
+app.use(express.static(projectRoot));
+app.use('/trading', express.static(projectRoot));
 
 // Add logging middleware for static file requests
 app.use((req, res, next) => {
