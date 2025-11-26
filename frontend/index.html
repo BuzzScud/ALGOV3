@@ -7,6 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1e293b">
+  <!-- Base path will be set dynamically based on environment -->
   <base href="/frontend/">
   
   <!-- Tailwind CSS -->
@@ -18,6 +19,29 @@
   
   <!-- Preline UI - Local from node_modules -->
   <script src="/frontend/node_modules/preline/dist/preline.js"></script>
+  
+  <!-- Auto-detect and update base path for production -->
+  <script>
+    (function() {
+      const path = window.location.pathname;
+      if (path.includes('/trading/')) {
+        // Production environment - update base href and all paths
+        const base = document.querySelector('base');
+        if (base) base.href = '/trading/';
+        
+        // Update CSS link
+        const cssLink = document.querySelector('link[href*="tailwind.css"]');
+        if (cssLink) cssLink.href = '/trading/css/tailwind.css';
+        
+        // Update script sources
+        document.querySelectorAll('script[src*="node_modules"]').forEach(script => {
+          if (script.src.includes('/frontend/')) {
+            script.src = script.src.replace('/frontend/', '/trading/');
+          }
+        });
+      }
+    })();
+  </script>
   
   <style>
     canvas {
@@ -836,13 +860,20 @@
       return fullUrl;
     }
     
+    // Detect base path for API routes (production vs development)
+    const getBasePath = () => {
+      const path = window.location.pathname;
+      return path.includes('/trading/') ? '/trading' : '';
+    };
+    
     // Centralized API routes (from PDF analysis principles)
+    // Automatically works with both /api/* and /trading/api/* paths
     const apiRoutes = {
-      quote: (symbol, period = '1d') => `/api/quote?symbol=${encodeURIComponent(symbol)}&period=${period}`,
-      history: (symbol, range = '1mo', interval = '1d') => `/api/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
-      snapshot: () => `/api/snapshot`,
-      tetrationProjection: () => `/api/tetration-projection`,
-      health: () => `/api/health`
+      quote: (symbol, period = '1d') => `${getBasePath()}/api/quote?symbol=${encodeURIComponent(symbol)}&period=${period}`,
+      history: (symbol, range = '1mo', interval = '1d') => `${getBasePath()}/api/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
+      snapshot: () => `${getBasePath()}/api/snapshot`,
+      tetrationProjection: () => `${getBasePath()}/api/tetration-projection`,
+      health: () => `${getBasePath()}/api/health`
     };
     
     // Enhanced API fetch with retry, error handling, and URL validation
@@ -1624,11 +1655,22 @@
           pointRadius: 0
         });
 
+        if (!tetration.lines || tetration.lines.length === 0) {
+          throw new Error('No projection lines returned from API');
+        }
+        
         tetration.lines.forEach((line, i) => {
+          if (!line.pointsQ8 || !Array.isArray(line.pointsQ8)) {
+            console.warn(`Line ${i} missing pointsQ8 array`);
+            return;
+          }
           const proj = line.pointsQ8.map(fromQ8);
           const heightLabel = line.towerHeight ? ` (H${line.towerHeight})` : '';
+          const towerLabel = line.tower && Array.isArray(line.tower) 
+            ? `Tower ${line.tower.slice(0, 3).join('-')}${heightLabel}`
+            : `Tower ${i + 1}${heightLabel}`;
           datasets.push({
-            label: `Tower ${line.tower.slice(0, 3).join('-')}${heightLabel}`,
+            label: towerLabel,
             data: [
               ...Array(points.length > 0 ? Math.min(60, points.length) : 0).fill(null),
               ...proj
@@ -1641,10 +1683,27 @@
           });
         });
 
+        // Ensure labels match data length
+        const expectedDataLength = datasets[0]?.data?.length || horizon;
+        if (labels.length !== expectedDataLength) {
+          // If labels are shorter, pad with additional horizon labels
+          while (labels.length < expectedDataLength) {
+            labels.push(`+${labels.length + 1}`);
+          }
+          // If labels are longer, truncate
+          labels.splice(expectedDataLength);
+        }
+        
+        if (!chart) {
+          throw new Error('Chart not initialized');
+        }
+        
         chart.data.labels = labels;
         chart.data.datasets = datasets;
         chart.update('none');
         
+        // Hide instructions overlay
+        const chartInstructions = $('chartInstructions');
         if (chartInstructions) {
           chartInstructions.style.display = 'none';
         }
